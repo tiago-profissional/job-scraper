@@ -1,7 +1,28 @@
 from datetime import datetime, timedelta, timezone
-
+from unittest.mock import patch
+import httpx
+from scraper.validation.job_validator import split_valid_invalid, validate_job, _is_link_alive
 from scraper.models.job import NormalizedJob
-from scraper.validation.job_validator import split_valid_invalid, validate_job
+
+import pytest
+@pytest.fixture(autouse=True)
+def mock_all_network_requests():
+    """Intercepts httpx.head globally so normal tests do not make real internet calls."""
+    with patch("scraper.validation.job_validator.httpx.head") as mock_head:
+        mock_head.return_value.status_code = 200
+        yield mock_head
+
+
+
+@patch("scraper.validation.job_validator.httpx.head")
+def test_link_returns_true_for_200(mock_head):
+    mock_head.return_value.status_code = 200
+    assert _is_link_alive("https://adzuna.com.br/valid") is True
+
+@patch("scraper.validation.job_validator.httpx.head")
+def test_link_returns_false_for_404(mock_head):
+    mock_head.return_value.status_code = 404
+    assert _is_link_alive("https://adzuna.com.br/notfound") is False
 
 
 def make_job(**changes) -> NormalizedJob:

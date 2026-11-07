@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import urlsplit
 
 from scraper.models.job import NormalizedJob
-
+import httpx
 
 ALLOWED_DOMAINS = {
     "adzuna": ("adzuna.com.br",),
@@ -50,6 +50,37 @@ def _check_page_type(source: str, path: str) -> list[str]:
     return []
 
 
+def _is_link_alive(url: str) -> bool:
+    """Verifies if the URL returns a valid HTTP status (under 400)."""
+    try:
+        # A HEAD request is faster than GET as it only fetches headers
+        response = httpx.head(url, timeout=5.0, follow_redirects=True)
+        return response.status_code < 400
+    except httpx.RequestError: 
+        return False
+
+
+def _is_github_issue_open(url: str) -> bool:
+    """Queries the GitHub API to check if an issue is not closed."""
+    # Matches URLs like: https://github.com/backend-br/vagas/issues/12384
+    # Fixed regex with capture groups () for owner and repo
+    match = re.match(r"https://github\.com/([^/]+)/([^/]+)/issues/(\d+)", url)
+    if not match:
+        return True # Bypass if it is a generic GitHub link, not an issue
+    
+    owner, repo, issue_number = match.groups()
+    api_url = f"https://api.github.com/repos/{owner}/{repo}/issues/{issue_number}"
+    
+    try: 
+        response = httpx.get(api_url, timeout=5.0)
+        
+        if response.status_code == 200:
+            return response.json().get("state") == "open"
+        return False
+    except httpx.RequestError:
+        return False
+
+
 def validate_job(job: NormalizedJob) -> list[str]:
     """Retorna os motivos de rejeição de uma vaga. Lista vazia indica vaga válida."""
     reasons = []
@@ -81,6 +112,14 @@ def validate_job(job: NormalizedJob) -> list[str]:
         reasons.append("domain_not_allowed")
     else:
         reasons.extend(_check_page_type(job.source, parts.path))
+        
+    # NEW: Active network check to prevent 404s and closed GitHub issues
+    if not reasons and url:
+        if parts.hostname == "github.com" and "/issues/" in parts.path:
+            if not _is_github_issue_open(url):
+                reasons.append("github_issue_closed")
+        elif not _is_link_alive(url):
+            reasons.append("dead_link_404")
 
     if job.published_at and job.published_at > datetime.now(timezone.utc) + timedelta(days=1):
         reasons.append("published_in_future")

@@ -13,6 +13,8 @@ from scraper.storage.json_store import (
 )
 from scraper.validation.job_validator import validate_job
 
+# NOVO IMPORT PARA O MYSQL
+from scraper.storage.mysql_store import persist_jobs_to_mysql
 
 def main() -> None:
     adapters = [
@@ -69,39 +71,9 @@ def main() -> None:
     except StorageError as err:
         print(f"Storage error (processed): {err}")
 
+    # Guarda todas as vagas válidas diretamente no MySQL local
+    persist_jobs_to_mysql(total_valid_jobs)
+
 
 if __name__ == "__main__":
     main()
-
-
-
-import os
-import httpx
-
-API_URL = os.getenv("WEB_API_URL", "https://vagas-nordestinas.vercel.app/api/jobs/sync")
-API_SECRET = os.getenv("SCRAPER_API_SECRET", "uma_chave_secreta_qualquer")
-
-def sync_to_vercel(jobs: list) -> None:
-    """Envia as vagas normalizadas para o dashboard web."""
-    if not jobs:
-        print("Nenhuma vaga para sincronizar.")
-        return
-
-    headers = {
-        "Authorization": f"Bearer {API_SECRET}",
-        "Content-Type": "application/json",
-    }
-    
-    # Converte os modelos Pydantic em dicionários JSON
-    payload = [job.model_dump(mode="json") for job in jobs]
-
-    try:
-        response = httpx.post(API_URL, json=payload, headers=headers, timeout=30.0)
-        response.raise_for_status()
-        print(f"✅ Sincronização concluída: {response.json().get('count')} vagas enviadas para a Vercel.")
-    except Exception as err:
-        print(f"❌ Falha ao sincronizar com a Vercel: {err}")    
-    
-
-# No final da main(), após o persist_jobs:
-sync_to_vercel(total_valid_jobs)
