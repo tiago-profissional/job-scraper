@@ -594,7 +594,7 @@ Nesta fase, ainda não precisa de PostgreSQL.
 - execução 1 (arquivo limpo): processed added 3
 ⏳ pendente: execução 2 (esperado added 0 / unchanged 3)
 
-
+✅
 Não repetitivo (a parte que vale estudar):
 
 A escrita atômica do json_store: temporário, os.replace e releitura. É o padrão que impede um arquivo corrompido se o programa cair no meio.
@@ -624,7 +624,7 @@ Etapa 12 — Adicionar paginação
  Parar quando não houver novas vagas
  Adicionar intervalo entre requisições
  Mostrar o progresso no terminal
-
+✅
 Resultado esperado:
 
 Página 1: 10 vagas
@@ -633,7 +633,7 @@ Página 3: 4 vagas
 Total: 24 vagas únicas
 
 Concluído quando: o scraper coletar todas as páginas permitidas sem entrar em loop infinito.
-
+✅
 Etapa 13 — Controlar erros e requisições
  Configurar timeout de conexão
  Configurar timeout de leitura
@@ -649,7 +649,7 @@ Etapa 13 — Controlar erros e requisições
  Registrar a URL que falhou
  Continuar coletando as outras vagas
  Não tentar contornar CAPTCHA ou bloqueios
-
+✅
 Concluído quando: uma página com erro não derrubar toda a execução.
 
 Etapa 14 — Adicionar a segunda fonte
@@ -665,7 +665,7 @@ Etapa 14 — Adicionar a segunda fonte
  Confirmar que ambas produzem o mesmo formato de vaga
 
 Concluído quando: duas fontes diferentes gerarem o mesmo modelo NormalizedJob.
-
+✅
 Etapa 15 — Playwright, somente se necessário
 
 Pule esta etapa se as duas fontes funcionarem com httpx.
