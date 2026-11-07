@@ -13,7 +13,7 @@ def persist_jobs_to_mysql(jobs: list) -> None:
     try:
         connection = pymysql.connect(
             host=os.getenv("DB_HOST", "127.0.0.1"),
-            port=int(os.getenv("DB_PORT", 3306)), # <-- Linha crucial adicionada aqui
+            port=int(os.getenv("DB_PORT", 3306)),
             user=os.getenv("DB_USER", "root"),
             password=os.getenv("DB_PASSWORD", ""),
             database=os.getenv("DB_NAME", "vagas_nordestinas")
