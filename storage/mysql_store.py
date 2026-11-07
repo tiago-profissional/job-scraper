@@ -11,12 +11,14 @@ def persist_jobs_to_mysql(jobs: list) -> None:
         return
         
     try:
+        # Usamos .strip() para limpar espaços vazios e ssl={} para forçar encriptação
         connection = pymysql.connect(
-            host=os.getenv("DB_HOST", "127.0.0.1"),
+            host=os.getenv("DB_HOST", "127.0.0.1").strip(),
             port=int(os.getenv("DB_PORT", 3306)),
-            user=os.getenv("DB_USER", "root"),
-            password=os.getenv("DB_PASSWORD", ""),
-            database=os.getenv("DB_NAME", "vagas_nordestinas")
+            user=os.getenv("DB_USER", "root").strip(),
+            password=os.getenv("DB_PASSWORD", "").strip(),
+            database=os.getenv("DB_NAME", "vagas_nordestinas").strip(),
+            ssl={} # <- A MÁGICA ESTÁ AQUI: Obrigatório para a Aiven!
         )
         
         added = 0
@@ -29,7 +31,7 @@ def persist_jobs_to_mysql(jobs: list) -> None:
                 )
                 
                 if not cursor.fetchone():
-                    # Insere mapeando para as colunas exatas da sua tabela do phpMyAdmin
+                    # Insere mapeando para as colunas exatas da sua tabela
                     sql = """
                         INSERT INTO jobs (
                             title, company, description, status, created_at, updated_at
@@ -40,14 +42,14 @@ def persist_jobs_to_mysql(jobs: list) -> None:
                         job.title, 
                         job.company, 
                         job.description, 
-                        "Rascunho", # O mesmo status que as suas vagas de teste têm
+                        "Rascunho", 
                         now, 
                         now
                     ))
                     added += 1
                     
         connection.commit()
-        print(f"✅ Sucesso: {added} novas vagas inseridas na base de dados 'vagas_nordestinas'.")
+        print(f"✅ Sucesso: {added} novas vagas inseridas na base de dados.")
     except Exception as e:
         print(f"❌ Erro ao ligar ao MySQL: {e}")
     finally:
