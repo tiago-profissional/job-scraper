@@ -1,23 +1,28 @@
 import re
 import httpx
 
-def check_url_alive(url: str) -> bool:
-    """Faz um ping na URL para verificar se ela não retorna erro 404 ou outros erros."""
+def check_url_alive(url: str) -> tuple[bool, str]:
+    """Faz um ping na URL e retorna (sucesso, motivo_do_erro)."""
     headers = {
         "User-Agent": "GG-Job-Scraper/1.0"
     }
     try:
-        # Usa HEAD para economizar banda, pois só precisamos do status
         response = httpx.head(url, timeout=5.0, headers=headers, follow_redirects=True)
         
-        # Alguns sites bloqueiam HEAD (Erro 405 Method Not Allowed). Tentamos com GET.
         if response.status_code == 405:
             response = httpx.get(url, timeout=5.0, headers=headers, follow_redirects=True)
             
-        return response.status_code < 400
+        if response.status_code >= 400:
+            return False, f"dead_link_{response.status_code}"
+            
+        return True, ""
+        
+    except httpx.TimeoutException:
+        return False, "dead_link_timeout"
     except httpx.RequestError:
-        return False
-
+        return False, "dead_link_connection_error"
+    
+    
 def is_github_issue_open(url: str) -> bool:
     """Consulta a API do GitHub para verificar se a vaga (issue) ainda está aberta."""
     match = re.match(r"https://github\.com/([^/]+)/([^/]+)/issues/(\d+)", url)

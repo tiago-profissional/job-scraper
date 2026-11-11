@@ -8,10 +8,10 @@ from scraper.fetching.http_client import check_url_alive, is_github_issue_open
 ALLOWED_DOMAINS = {
     "adzuna": ("adzuna.com.br",),
     "remotive": ("remotive.com",),
-    "arbeitnow": ("*",),  # "*" permite qualquer domínio HTTP/HTTPS válido vindo da Arbeitnow
+    "arbeitnow": ("*",),  # "*" permits any valid HTTP/HTTPS domain from Arbeitnow
 }
 
-# O formato do caminho de uma vaga individual para cada fonte
+# Path format for individual jobs per source
 JOB_PATH_PATTERNS = {
     "adzuna": re.compile(r"^/details/\d+/?$"),
 }
@@ -33,7 +33,7 @@ def _domain_allowed(host: str, allowed: tuple[str, ...]) -> bool:
 
 
 def _check_page_type(source: str, path: str) -> list[str]:
-    """Rejeita páginas de login, busca e outras que não sejam uma vaga individual."""
+    """Rejects login pages, search pages, and others that do not represent a single job."""
     segments = set(path.lower().strip("/").split("/")) if path else set()
 
     blocked = [
@@ -51,7 +51,7 @@ def _check_page_type(source: str, path: str) -> list[str]:
 
 
 def validate_job(job: NormalizedJob) -> list[str]:
-    """Retorna os motivos de rejeição de uma vaga. Lista vazia indica vaga válida."""
+    """Returns rejection reasons for a job. An empty list indicates a valid job."""
     reasons = []
 
     if not job.title:
@@ -82,13 +82,15 @@ def validate_job(job: NormalizedJob) -> list[str]:
     else:
         reasons.extend(_check_page_type(job.source, parts.path))
         
-    # VERIFICAÇÃO DE REDE: Executa apenas se a URL passou nas verificações de formato acima
+    # NETWORK CHECK: Executes solely if the URL bypassed the structural formatting verifications above
     if not reasons and url:
         if parts.hostname == "github.com" and "/issues/" in parts.path:
             if not is_github_issue_open(url):
                 reasons.append("github_issue_closed")
-        elif not check_url_alive(url):
-            reasons.append("dead_link_404")
+        else:
+            is_alive, error_reason = check_url_alive(url)
+            if not is_alive:
+                reasons.append(error_reason)
 
     if job.published_at and job.published_at > datetime.now(timezone.utc) + timedelta(days=1):
         reasons.append("published_in_future")
@@ -99,7 +101,7 @@ def validate_job(job: NormalizedJob) -> list[str]:
 def split_valid_invalid(
     jobs: list[NormalizedJob],
 ) -> tuple[list[NormalizedJob], list[tuple[NormalizedJob, list[str]]]]:
-    """Separa vagas válidas de inválidas, mantendo os motivos de rejeição."""
+    """Separates valid from invalid jobs, preserving the specific rejection reasons."""
     valid, invalid = [], []
     for job in jobs:
         reasons = validate_job(job)
