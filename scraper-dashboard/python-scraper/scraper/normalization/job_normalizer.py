@@ -4,7 +4,6 @@ from datetime import datetime, timezone
 
 from bs4 import BeautifulSoup
 
-from scraper.fetching.http_client import extract_external_apply_url, get_final_url
 from scraper.models.job import (
     EmploymentType,
     NormalizedJob,
@@ -12,6 +11,32 @@ from scraper.models.job import (
     Seniority,
     WorkMode,
 )
+
+KNOWN_ATS_DOMAINS = [
+    r"gupy\.io",
+    r"greenhouse\.io",
+    r"lever\.co",
+    r"workable\.com",
+    r"solides\.jobs",
+    r"kenoby\.com",
+    r"bamboohr\.com",
+    r"gupy\.com\.br",
+]
+
+ATS_REGEX = re.compile(
+    rf"https?://[^\s\)\>\]\"\'\`]*(?:{'|'.join(KNOWN_ATS_DOMAINS)})[^\s\)\>\]\"\'\`]*",
+    re.IGNORECASE
+)
+
+
+def extract_ats_apply_url(description: str | None) -> str | None:
+    """Extrai apenas links diretos de plataformas de RH/ATS reconhecidas."""
+    if not description:
+        return None
+    match = ATS_REGEX.search(description)
+    if match:
+        return match.group(0).rstrip(".,;)")
+    return None
 
 
 def clean_text(value: str | None) -> str:
@@ -111,7 +136,6 @@ def normalize_seniority(title: str | None) -> Seniority | None:
 
 
 WORK_MODE_KEYWORDS = [
-    # hybrid first: "híbrido, 2 dias remoto" must not become remote
     ("híbrid", WorkMode.HYBRID),
     ("hibrid", WorkMode.HYBRID),
     ("hybrid", WorkMode.HYBRID),
@@ -156,30 +180,20 @@ def normalize_date(value: str | datetime | None) -> datetime | None:
         except ValueError:
             return None
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)  # assumption: naive means UTC
+        parsed = parsed.replace(tzinfo=timezone.utc)
     return parsed.astimezone(timezone.utc)
 
 
 def normalize_job(raw: RawJob) -> NormalizedJob:
     cleaned_desc = clean_description(raw.description)
-    original_url = str(raw.source_url) if raw.source_url else ""
-
-    # Extrai o link direto de candidatura se for issue do GitHub
-    if "github.com" in original_url and "/issues/" in original_url:
-        target_url = extract_external_apply_url(raw.description, fallback_url=original_url)
-    else:
-        target_url = original_url
-
-    # Resolve redirecionamentos intermediários para pegar o link final
-    final_url = get_final_url(target_url) if target_url else target_url
+    city, state = split_location(raw.location_area)
 
     data = raw.model_dump()
-    city, state = split_location(raw.location_area)
     data.update(
-        source_url=final_url,
         title=clean_title(raw.title),
         company=clean_company(raw.company),
         description=cleaned_desc,
+        apply_url=extract_ats_apply_url(raw.description),
         work_mode=normalize_work_mode(f"{raw.title} {raw.description}"),
         seniority=normalize_seniority(raw.title),
         employment_type=normalize_employment_type(raw.employment_type),
@@ -187,12 +201,11 @@ def normalize_job(raw: RawJob) -> NormalizedJob:
         published_at=normalize_date(raw.published_at),
         city=city,
         state=state,
-        raw=raw.model_dump(mode="json"),  # original RawJob, kept for audit
+        raw=raw.model_dump(mode="json"),
     )
     return NormalizedJob(**data)
 
 
-# canonical name -> regex of accepted spellings (matched as whole words)
 TECH_PATTERNS = {
     "Python": r"python",
     "Java": r"java(?![\s\-]?script)",
@@ -221,7 +234,6 @@ TECH_PATTERNS = {
     "Kotlin": r"kotlin",
 }
 
-# (?<!\w) and (?!\w) work like \b, but also handle C#, .NET and Node.js
 TECH_REGEXES = {
     name: re.compile(rf"(?<!\w)(?:{pattern})(?!\w)", re.IGNORECASE)
     for name, pattern in TECH_PATTERNS.items()

@@ -4,7 +4,6 @@ from enum import Enum
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 
 
-
 class WorkMode(str, Enum):
     REMOTE = "remote"
     HYBRID = "hybrid"
@@ -46,6 +45,7 @@ class RawJob(BaseModel):
 
 class NormalizedJob(RawJob):
     company: str | None = None        # empty company becomes None after normalization
+    apply_url: str | None = None      # Direct ATS application link (Gupy, Lever, etc.)
     work_mode: WorkMode | None = None
     seniority: Seniority | None = None
     employment_type: EmploymentType | None = None

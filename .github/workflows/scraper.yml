@@ -1,16 +1,13 @@
-name: Run Job Scraper Pipeline
+name: Run Job Scraper on Push
 
 on:
-  schedule:
-    - cron: '0 */6 * * *'
+  push:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
-  scrape:
+  run-scraper:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: scraper-dashboard/python-scraper
 
     steps:
       - name: Checkout repository
@@ -22,17 +19,20 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          cd python-scraper
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-      - name: Run Scraper & Sync
+      - name: Run Scraper Pipeline
         env:
+          ADZUNA_APP_ID: ${{ secrets.ADZUNA_APP_ID }}
+          ADZUNA_APP_KEY: ${{ secrets.ADZUNA_APP_KEY }}
           DB_HOST: ${{ secrets.DB_HOST }}
           DB_PORT: ${{ secrets.DB_PORT }}
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           DB_NAME: ${{ secrets.DB_NAME }}
-          ADZUNA_APP_ID: ${{ secrets.ADZUNA_APP_ID }}
-          ADZUNA_APP_KEY: ${{ secrets.ADZUNA_APP_KEY }}
-          SCRAPER_API_SECRET: ${{ secrets.SCRAPER_API_SECRET }}
-          WEB_API_URL: "https://vagas-nordestinas.vercel.app/api/jobs/sync"
-        run: python main.py
+        run: |
+          cd python-scraper
+          python main.py
