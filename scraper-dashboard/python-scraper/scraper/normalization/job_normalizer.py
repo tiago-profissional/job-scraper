@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 from bs4 import BeautifulSoup
 
+from scraper.fetching.http_client import extract_external_apply_url, get_final_url
 from scraper.models.job import (
     EmploymentType,
     NormalizedJob,
@@ -64,7 +65,7 @@ def clean_description(text: str | None) -> str:
         br.replace_with("\n")
 
     for li in soup.find_all("li"):
-        li.insert_before("\n- ")
+        li.insert_before("\n")
 
     for block in soup.find_all(BLOCK_TAGS):
         block.insert_after("\n\n")
@@ -160,12 +161,25 @@ def normalize_date(value: str | datetime | None) -> datetime | None:
 
 
 def normalize_job(raw: RawJob) -> NormalizedJob:
+    cleaned_desc = clean_description(raw.description)
+    original_url = str(raw.source_url) if raw.source_url else ""
+
+    # Extrai o link direto de candidatura se for issue do GitHub
+    if "github.com" in original_url and "/issues/" in original_url:
+        target_url = extract_external_apply_url(raw.description, fallback_url=original_url)
+    else:
+        target_url = original_url
+
+    # Resolve redirecionamentos intermediários para pegar o link final
+    final_url = get_final_url(target_url) if target_url else target_url
+
     data = raw.model_dump()
     city, state = split_location(raw.location_area)
     data.update(
+        source_url=final_url,
         title=clean_title(raw.title),
         company=clean_company(raw.company),
-        description=clean_description(raw.description),
+        description=cleaned_desc,
         work_mode=normalize_work_mode(f"{raw.title} {raw.description}"),
         seniority=normalize_seniority(raw.title),
         employment_type=normalize_employment_type(raw.employment_type),

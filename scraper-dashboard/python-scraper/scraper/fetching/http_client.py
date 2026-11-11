@@ -1,6 +1,7 @@
 import re
 import httpx
 
+
 def check_url_alive(url: str) -> tuple[bool, str]:
     """Faz um ping na URL e retorna (sucesso, motivo_do_erro)."""
     headers = {
@@ -41,6 +42,36 @@ def is_github_issue_open(url: str) -> bool:
     except httpx.RequestError:
         return False
 
+
+def get_final_url(url: str) -> str:
+    """Segue redirecionamentos HTTP e retorna a URL final direta da empresa."""
+    if not url:
+        return ""
+    headers = {"User-Agent": "GG-Job-Scraper/1.0"}
+    try:
+        with httpx.Client(follow_redirects=True, timeout=5.0) as client:
+            response = client.head(url, headers=headers)
+            if response.status_code == 405:
+                response = client.get(url, headers=headers)
+            return str(response.url)
+    except httpx.RequestError:
+        return url
+
+
+def extract_external_apply_url(description: str, fallback_url: str) -> str:
+    """Extrai o primeiro link externo de candidatura contido no corpo da vaga (ex: GitHub Issues)."""
+    if not description:
+        return fallback_url
+        
+    urls = re.findall(r'https?://[^\s\)\>\]\"\'\`]+', description)
+    for u in urls:
+        u_lower = u.lower()
+        if not any(domain in u_lower for domain in ["github.com", "linkedin.com/share", "twitter.com", ".png", ".jpg"]):
+            return u.rstrip(".,;)")
+            
+    return fallback_url
+
+
 def fetch_url(url, output_path):
     headers = {
         "User-Agent": "GG-Job-Scraper/1.0"
@@ -73,6 +104,7 @@ def fetch_url(url, output_path):
 
     finally:
         print("HTTP request finished.")
+
 
 if __name__ == "__main__":
     fetch_url(
