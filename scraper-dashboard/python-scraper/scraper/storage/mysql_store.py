@@ -3,12 +3,24 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import urlsplit
 
 import pymysql
+
+try:
+    from dotenv import find_dotenv, load_dotenv
+
+    load_dotenv(find_dotenv())
+    if not os.getenv("DB_HOST"):
+        load_dotenv(find_dotenv(".env.local"))
+except ImportError:
+    pass
+
 from scraper.fetching.http_client import check_url_alive, is_github_issue_open
 from scraper.models.job import NormalizedJob
 from scraper.validation.job_validator import _extract_apply_url_from_description
 
+# Apenas confirmações explícitas de vaga encerrada/404 (evita apagar vagas válidas por bloqueio de IP no GitHub Actions)
 CONFIRMED_DEAD_PREFIXES = (
-    "soft_404_",
+    "soft_404_expired_job",
+    "soft_404_title_error",
     "github_issue_closed",
     "dead_link_404",
     "dead_link_410",
@@ -89,12 +101,10 @@ def _ensure_schema(cursor) -> None:
         if col_name not in existing_columns:
             cursor.execute(f"ALTER TABLE jobs ADD COLUMN {col_name} {col_definition}")
 
-    # Se a tabela antiga usava 'url' como NOT NULL, migra os dados e libera NULL para não travar o INSERT
     if "url" in existing_columns:
         cursor.execute("UPDATE jobs SET source_url = url WHERE source_url IS NULL OR source_url = ''")
         cursor.execute("ALTER TABLE jobs MODIFY COLUMN url TEXT NULL")
 
-    # Garante índice único em content_hash para o ON DUPLICATE KEY UPDATE funcionar
     cursor.execute("SHOW INDEX FROM jobs WHERE Column_name = 'content_hash' AND Non_unique = 0")
     if not cursor.fetchone():
         cursor.execute("ALTER TABLE jobs ADD UNIQUE INDEX idx_jobs_content_hash (content_hash)")
@@ -105,7 +115,8 @@ def persist_jobs_to_mysql(jobs: list[NormalizedJob]) -> None:
         print("Nenhuma vaga válida para inserir no MySQL.")
         return
 
-    print("🔄 Tentando conectar ao MySQL...")
+    target_host = os.getenv("DB_HOST", "127.0.0.1")
+    print(f"🔄 Tentando conectar ao MySQL ({target_host})...")
     try:
         connection = get_db_connection()
         with connection.cursor() as cursor:
