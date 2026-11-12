@@ -19,12 +19,13 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
+        working-directory: scraper-dashboard/python-scraper
         run: |
-          cd python-scraper
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Run Scraper Pipeline
+        working-directory: scraper-dashboard/python-scraper
         env:
           ADZUNA_APP_ID: ${{ secrets.ADZUNA_APP_ID }}
           ADZUNA_APP_KEY: ${{ secrets.ADZUNA_APP_KEY }}
@@ -33,6 +34,4 @@ jobs:
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           DB_NAME: ${{ secrets.DB_NAME }}
-        run: |
-          cd python-scraper
-          python main.py
+        run: python main.py
