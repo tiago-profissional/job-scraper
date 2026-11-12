@@ -1,21 +1,32 @@
 import re
 import httpx
 
+EXPIRED_INDICATORS = [
+    "the page you were looking for doesn't exist",
+    "this job is no longer available",
+    "vaga indisponível",
+    "vaga encerrada",
+    "not found",
+    "404 not found"
+]
 
 def check_url_alive(url: str) -> tuple[bool, str]:
-    """Faz um ping na URL e retorna (sucesso, motivo_do_erro)."""
+    """A target link is evaluated to determine if the vacancy remains active."""
     headers = {
         "User-Agent": "GG-Job-Scraper/1.0"
     }
     try:
-        response = httpx.head(url, timeout=5.0, headers=headers, follow_redirects=True)
+        response = httpx.get(url, timeout=7.0, headers=headers, follow_redirects=True)
         
-        if response.status_code == 405:
-            response = httpx.get(url, timeout=5.0, headers=headers, follow_redirects=True)
-            
         if response.status_code >= 400:
             return False, f"dead_link_{response.status_code}"
             
+        response_text = response.text.lower()
+        
+        for indicator in EXPIRED_INDICATORS:
+            if indicator in response_text:
+                return False, "soft_404_expired_job"
+                
         return True, ""
         
     except httpx.TimeoutException:
@@ -23,9 +34,8 @@ def check_url_alive(url: str) -> tuple[bool, str]:
     except httpx.RequestError:
         return False, "dead_link_connection_error"
     
-    
 def is_github_issue_open(url: str) -> bool:
-    """Consulta a API do GitHub para verificar se a vaga (issue) ainda está aberta."""
+    """The GitHub API is queried so that the issue's state can be verified."""
     match = re.match(r"https://github\.com/([^/]+)/([^/]+)/issues/(\d+)", url)
     if not match:
         return True 
@@ -42,7 +52,6 @@ def is_github_issue_open(url: str) -> bool:
     except httpx.RequestError:
         return False
 
-
 def fetch_url(url, output_path):
     headers = {
         "User-Agent": "GG-Job-Scraper/1.0"
@@ -57,7 +66,6 @@ def fetch_url(url, output_path):
 
         r.raise_for_status()
         print("Request successful")
-
         print("Status:", r.status_code)
         print("Content-Type:", r.headers.get("Content-Type"))
         print("Response size:", len(r.content))
@@ -69,13 +77,10 @@ def fetch_url(url, output_path):
 
     except httpx.HTTPStatusError as error:
         print("HTTP error:", error)
-
     except httpx.RequestError as error:
         print("Request error:", error)
-
     finally:
         print("HTTP request finished.")
-
 
 if __name__ == "__main__":
     fetch_url(
