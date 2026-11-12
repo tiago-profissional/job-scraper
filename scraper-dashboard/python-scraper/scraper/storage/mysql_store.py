@@ -14,10 +14,27 @@ CONFIRMED_DEAD_PREFIXES = (
     "dead_link_410",
 )
 
+REQUIRED_COLUMNS: dict[str, str] = {
+    "source": "VARCHAR(50) NOT NULL DEFAULT 'unknown'",
+    "source_url": "TEXT NULL",
+    "apply_url": "TEXT NULL",
+    "external_id": "VARCHAR(100) NULL",
+    "title": "VARCHAR(255) NOT NULL DEFAULT ''",
+    "company": "VARCHAR(255) NULL",
+    "description": "LONGTEXT NULL",
+    "work_mode": "VARCHAR(50) NULL",
+    "seniority": "VARCHAR(50) NULL",
+    "employment_type": "VARCHAR(50) NULL",
+    "city": "VARCHAR(100) NULL",
+    "state": "VARCHAR(100) NULL",
+    "published_at": "DATETIME NULL",
+    "fetched_at": "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP",
+    "content_hash": "VARCHAR(64) NULL",
+}
+
 
 def get_db_connection():
     host = os.getenv("DB_HOST", "127.0.0.1")
-    # Substitui 'localhost' para evitar o erro 'No such file or directory' no Linux/GitHub Actions
     if host.lower() == "localhost":
         host = "127.0.0.1"
 
@@ -26,7 +43,6 @@ def get_db_connection():
     password = os.getenv("DB_PASSWORD", "")
     database = os.getenv("DB_NAME", "vagas_nordestinas")
 
-    # Configuração de SSL para bancos em nuvem (ex: Aiven)
     ssl_config = None
     if "aivencloud.com" in host or os.getenv("DB_USE_SSL", "").lower() == "true":
         ssl_config = {"ssl": True}
@@ -66,9 +82,22 @@ def _ensure_schema(cursor) -> None:
         );
     """)
 
-    cursor.execute("SHOW COLUMNS FROM jobs LIKE 'source'")
+    cursor.execute("SHOW COLUMNS FROM jobs")
+    existing_columns = {row[0] for row in cursor.fetchall()}
+
+    for col_name, col_definition in REQUIRED_COLUMNS.items():
+        if col_name not in existing_columns:
+            cursor.execute(f"ALTER TABLE jobs ADD COLUMN {col_name} {col_definition}")
+
+    # Se a tabela antiga usava 'url' como NOT NULL, migra os dados e libera NULL para não travar o INSERT
+    if "url" in existing_columns:
+        cursor.execute("UPDATE jobs SET source_url = url WHERE source_url IS NULL OR source_url = ''")
+        cursor.execute("ALTER TABLE jobs MODIFY COLUMN url TEXT NULL")
+
+    # Garante índice único em content_hash para o ON DUPLICATE KEY UPDATE funcionar
+    cursor.execute("SHOW INDEX FROM jobs WHERE Column_name = 'content_hash' AND Non_unique = 0")
     if not cursor.fetchone():
-        cursor.execute("ALTER TABLE jobs ADD COLUMN source VARCHAR(50) NOT NULL DEFAULT 'unknown' AFTER id")
+        cursor.execute("ALTER TABLE jobs ADD UNIQUE INDEX idx_jobs_content_hash (content_hash)")
 
 
 def persist_jobs_to_mysql(jobs: list[NormalizedJob]) -> None:
@@ -102,9 +131,8 @@ def persist_jobs_to_mysql(jobs: list[NormalizedJob]) -> None:
                     fetched_at = VALUES(fetched_at);
             """
 
-            records = []
-            for job in jobs:
-                records.append((
+            records = [
+                (
                     job.source,
                     str(job.source_url),
                     job.apply_url,
@@ -120,7 +148,9 @@ def persist_jobs_to_mysql(jobs: list[NormalizedJob]) -> None:
                     job.published_at,
                     job.fetched_at,
                     job.content_hash,
-                ))
+                )
+                for job in jobs
+            ]
 
             cursor.executemany(sql, records)
             print(f"✅ {len(records)} vagas sincronizadas com sucesso no MySQL!")
@@ -130,7 +160,7 @@ def persist_jobs_to_mysql(jobs: list[NormalizedJob]) -> None:
         print(f"❌ Erro ao conectar/salvar no MySQL: {err}")
 
 
-def _check_stored_row(row: tuple) -> tuple[int, str, str | None]:
+def _check_stored_row(row: tuple) -> tuple[int, str, str]:
     """Retorna (id, title, motivo_remocao) se a vaga salva no banco estiver morta."""
     job_id, title, source_url, apply_url, description = row
     parts = urlsplit(source_url or "")
@@ -162,6 +192,7 @@ def cleanup_dead_jobs(max_workers: int = 10) -> None:
     try:
         connection = get_db_connection()
         with connection.cursor() as cursor:
+            _ensure_schema(cursor)
             cursor.execute("SELECT id, title, source_url, apply_url, description FROM jobs")
             rows = cursor.fetchall()
 
