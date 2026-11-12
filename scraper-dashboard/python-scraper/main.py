@@ -11,10 +11,9 @@ from scraper.storage.json_store import (
     persist_raw,
     utc_now,
 )
+from scraper.storage.mysql_store import cleanup_dead_jobs, persist_jobs_to_mysql
 from scraper.validation.job_validator import validate_job
 
-# NOVO IMPORT PARA O MYSQL
-from scraper.storage.mysql_store import persist_jobs_to_mysql
 
 def main() -> None:
     adapters = [
@@ -71,8 +70,9 @@ def main() -> None:
     except StorageError as err:
         print(f"Storage error (processed): {err}")
 
-    # Guarda todas as vagas válidas diretamente no MySQL local
+    # Sincroniza vagas válidas e remove vagas expiradas do MySQL
     persist_jobs_to_mysql(total_valid_jobs)
+    cleanup_dead_jobs()
 
 
 if __name__ == "__main__":
