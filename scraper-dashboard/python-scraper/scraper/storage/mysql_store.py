@@ -13,15 +13,21 @@ try:
 except ImportError:
     pass
 
-from scraper.fetching.http_client import check_url_alive, is_github_issue_open
+from scraper.fetching.http_client import check_github_issue_job_posting, check_url_alive
 from scraper.models.job import NormalizedJob
 from scraper.validation.job_validator import _extract_apply_url_from_description
 
-# Apenas confirmações explícitas de vaga encerrada/404 (evita apagar vagas válidas por bloqueio de IP no GitHub Actions)
+# Ignora falhas transitórias de rede; remove apenas links ou vagas comprovadamente inválidos.
 CONFIRMED_DEAD_PREFIXES = (
+    "github_issue_not_valid_job",
+    "github_issue_closed",
     "soft_404_expired_job",
     "soft_404_title_error",
-    "github_issue_closed",
+    "soft_404_no_job_signals",
+    "soft_404_thin_or_empty_page",
+    "soft_404_redirected_to_listing",
+    "soft_404_redirected_to_search",
+    "soft_404_adzuna_redirect",
     "dead_link_404",
     "dead_link_410",
 )
@@ -30,7 +36,7 @@ REQUIRED_COLUMNS: dict[str, str] = {
     "source": "VARCHAR(50) NOT NULL DEFAULT 'unknown'",
     "source_url": "TEXT NULL",
     "apply_url": "TEXT NULL",
-    "external_id": "VARCHAR(100) NULL",
+    "external_id": "VARCHAR(255) NULL",
     "title": "VARCHAR(255) NOT NULL DEFAULT ''",
     "company": "VARCHAR(255) NULL",
     "description": "LONGTEXT NULL",
@@ -71,6 +77,13 @@ def get_db_connection():
     )
 
 
+def _normalize_external_id(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip()
+    return normalized or None
+
+
 def _ensure_schema(cursor) -> None:
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS jobs (
@@ -78,7 +91,7 @@ def _ensure_schema(cursor) -> None:
             source VARCHAR(50) NOT NULL,
             source_url TEXT NOT NULL,
             apply_url TEXT NULL,
-            external_id VARCHAR(100) NULL,
+            external_id VARCHAR(255) NULL,
             title VARCHAR(255) NOT NULL,
             company VARCHAR(255) NULL,
             description LONGTEXT NULL,
@@ -95,15 +108,29 @@ def _ensure_schema(cursor) -> None:
     """)
 
     cursor.execute("SHOW COLUMNS FROM jobs")
-    existing_columns = {row[0] for row in cursor.fetchall()}
+    column_rows = cursor.fetchall()
+    existing_columns = {row[0] for row in column_rows}
+    column_types = {row[0]: str(row[1]).lower() for row in column_rows}
 
     for col_name, col_definition in REQUIRED_COLUMNS.items():
         if col_name not in existing_columns:
             cursor.execute(f"ALTER TABLE jobs ADD COLUMN {col_name} {col_definition}")
 
-    if "url" in existing_columns:
-        cursor.execute("UPDATE jobs SET source_url = url WHERE source_url IS NULL OR source_url = ''")
-        cursor.execute("ALTER TABLE jobs MODIFY COLUMN url TEXT NULL")
+    if "external_id" in existing_columns:
+        external_id_type = column_types["external_id"]
+        if external_id_type.startswith("varchar("):
+            try:
+                external_id_length = int(external_id_type[8:-1])
+            except ValueError:
+                external_id_length = 0
+            if external_id_length < 255:
+                cursor.execute(
+                    "ALTER TABLE jobs MODIFY COLUMN external_id VARCHAR(255) NULL"
+                )
+        elif external_id_type not in {"text", "mediumtext", "longtext"}:
+            cursor.execute(
+                "ALTER TABLE jobs MODIFY COLUMN external_id VARCHAR(255) NULL"
+            )
 
     cursor.execute("SHOW INDEX FROM jobs WHERE Column_name = 'content_hash' AND Non_unique = 0")
     if not cursor.fetchone():
@@ -147,7 +174,7 @@ def persist_jobs_to_mysql(jobs: list[NormalizedJob]) -> None:
                     job.source,
                     str(job.source_url),
                     job.apply_url,
-                    job.external_id,
+                    _normalize_external_id(job.external_id),
                     job.title,
                     job.company,
                     job.description,
@@ -178,8 +205,9 @@ def _check_stored_row(row: tuple) -> tuple[int, str, str]:
     is_github_issue = parts.hostname == "github.com" and "/issues/" in parts.path
 
     if is_github_issue:
-        if not is_github_issue_open(source_url):
-            return job_id, title, "github_issue_closed"
+        is_valid_job, issue_reason = check_github_issue_job_posting(source_url)
+        if not is_valid_job and issue_reason.startswith(CONFIRMED_DEAD_PREFIXES):
+            return job_id, title, issue_reason
     elif source_url:
         alive, reason = check_url_alive(source_url)
         if not alive and reason.startswith(CONFIRMED_DEAD_PREFIXES):
@@ -197,8 +225,14 @@ def _check_stored_row(row: tuple) -> tuple[int, str, str]:
     return job_id, title, ""
 
 
+def _is_confirmed_dead_reason(reason: str) -> bool:
+    if reason.startswith("apply_"):
+        reason = reason[len("apply_"):]
+    return reason.startswith(CONFIRMED_DEAD_PREFIXES)
+
+
 def cleanup_dead_jobs(max_workers: int = 10) -> None:
-    """Revalida vagas já existentes no MySQL e remove as que expiraram ou viraram 404."""
+    """Revalida vagas antigas e remove apenas casos comprovadamente inválidos."""
     print("🧹 Verificando vagas antigas no MySQL para limpeza...")
     try:
         connection = get_db_connection()
@@ -216,7 +250,7 @@ def cleanup_dead_jobs(max_workers: int = 10) -> None:
                 futures = [executor.submit(_check_stored_row, row) for row in rows]
                 for future in as_completed(futures):
                     job_id, title, reason = future.result()
-                    if reason:
+                    if _is_confirmed_dead_reason(reason):
                         dead_ids.append(job_id)
                         print(f"🗑️ Removendo vaga expirada [{job_id}] '{title}': {reason}")
 

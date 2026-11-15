@@ -2,13 +2,14 @@ import re
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlsplit
 
-from scraper.fetching.http_client import check_url_alive, is_github_issue_open
+from scraper.fetching.http_client import check_url_alive, is_github_issue_job_posting
 from scraper.models.job import NormalizedJob, WorkMode
 
 ALLOWED_DOMAINS = {
     "adzuna": ("adzuna.com.br",),
     "remotive": ("remotive.com",),
-    "arbeitnow": ("*",),
+    "arbeitnow": ("arbeitnow.com", "github.com"),
+    "github": ("github.com",),
 }
 
 JOB_PATH_PATTERNS = {
@@ -220,8 +221,8 @@ def validate_job(job: NormalizedJob) -> list[str]:
     if not reasons and url:
         is_github_issue = parts.hostname == "github.com" and "/issues/" in parts.path
         if is_github_issue:
-            if not is_github_issue_open(url):
-                reasons.append("github_issue_closed")
+            if not is_github_issue_job_posting(url):
+                reasons.append("github_issue_not_valid_job")
         else:
             is_alive, error_reason = check_url_alive(url, source=job.source)
             if not is_alive:

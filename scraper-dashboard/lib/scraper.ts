@@ -1,13 +1,16 @@
-import axios from 'axios';
-import * as cheerio from 'cheerio';
-
 export interface JobData {
-  external_id: string;
+  source: string;
+  source_url: string;
+  apply_url: string | null;
   title: string;
   company: string;
-  location: string;
-  skills: string;
-  url: string;
+  description: string | null;
+  work_mode: string | null;
+  seniority: string | null;
+  employment_type: string | null;
+  city: string | null;
+  state: string | null;
+  published_at: string | null;
 }
 
 export async function scrapeStartupJobs(): Promise<JobData[]> {
@@ -19,28 +22,46 @@ export async function scrapeStartupJobs(): Promise<JobData[]> {
 
   return [
     {
-      external_id: 'startup_001',
+      source: 'startup',
+      source_url: 'https://starkbank.com/careers',
+      apply_url: null,
       title: 'Engenheiro de Software Sênior',
       company: 'Stark Bank',
-      location: 'São Paulo - SP',
-      skills: JSON.stringify(['Node.js', 'React', 'AWS']),
-      url: 'https://starkbank.com/careers'
+      description: 'Node.js, React, AWS',
+      work_mode: null,
+      seniority: 'senior',
+      employment_type: null,
+      city: 'São Paulo',
+      state: 'SP',
+      published_at: null
     },
     {
-      external_id: 'startup_002',
+      source: 'startup',
+      source_url: 'https://brex.com/jobs',
+      apply_url: null,
       title: 'Product Designer',
       company: 'Brex',
-      location: 'Remoto',
-      skills: JSON.stringify(['Figma', 'UI/UX']),
-      url: 'https://brex.com/jobs'
+      description: 'Figma, UI/UX',
+      work_mode: 'remote',
+      seniority: null,
+      employment_type: null,
+      city: null,
+      state: null,
+      published_at: null
     },
     {
-      external_id: 'startup_003',
+      source: 'startup',
+      source_url: 'https://vercel.com/jobs',
+      apply_url: null,
       title: 'Backend Engineer',
       company: 'Vercel',
-      location: 'São Francisco - EUA',
-      skills: JSON.stringify(['Rust', 'Go']),
-      url: 'https://vercel.com/careers'
+      description: 'Rust, Go',
+      work_mode: null,
+      seniority: null,
+      employment_type: null,
+      city: 'São Francisco',
+      state: 'CA',
+      published_at: null
     }
   ];
 

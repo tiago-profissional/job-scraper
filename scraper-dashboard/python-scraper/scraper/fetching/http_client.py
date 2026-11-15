@@ -1,5 +1,7 @@
+import json
 import re
 from urllib.parse import parse_qs, urlsplit
+
 import httpx
 
 DEFAULT_HEADERS = {
@@ -62,25 +64,91 @@ GENERIC_REDIRECT_PATHS = {
 
 SEARCH_QUERY_KEYS = {"q", "query", "search", "keyword", "keywords", "busca"}
 
-ACTIVE_JOB_SIGNALS = (
-    "candidatar",
-    "apply",
-    "requisitos",
-    "requirements",
-    "responsabilidades",
-    "responsibilities",
-    "descrição da vaga",
-    "job description",
-    "qualificações",
-    "qualifications",
-    "benefícios",
-    "benefits",
-    "salário",
-    "salary",
-    "sobre a vaga",
-    "about the job",
-    "about the role",
-    "what you'll do",
+JOB_INTENT_SIGNALS = (
+    "we're hiring",
+    "we are hiring",
+    "now hiring",
+    "hiring for",
+    "hiring:",
+    "job opening for",
+    "job opening:",
+    "open position for",
+    "open position:",
+    "open role for",
+    "open role:",
+    "vacancy announcement",
+    "vacancies available",
+    "we're looking to hire",
+    "we are looking to hire",
+    "we're looking for a",
+    "we're looking for an",
+    "we are looking for a",
+    "we are looking for an",
+    "join our team as",
+    "vaga:",
+    "vaga -",
+    "vaga para",
+    "vaga de",
+    "vaga aberta",
+    "oportunidade de emprego para",
+    "estamos contratando",
+    "contratando para",
+    "buscamos profissional",
+    "buscamos um",
+    "buscamos uma",
+    "estamos buscando um",
+    "estamos buscando uma",
+)
+
+JOB_DETAIL_SIGNAL_GROUPS = (
+    (
+        "requirements",
+        "qualifications",
+        "required skills",
+        "requisitos",
+        "qualificações",
+        "experiência necessária",
+    ),
+    (
+        "responsibilities",
+        "what you'll do",
+        "what you will do",
+        "duties",
+        "responsabilidades",
+        "atribuições",
+    ),
+    (
+        "salary",
+        "compensation",
+        "benefits",
+        "full-time",
+        "full time",
+        "contract",
+        "salário",
+        "remuneração",
+        "benefícios",
+        "tempo integral",
+    ),
+    (
+        "location",
+        "remote",
+        "hybrid",
+        "on-site",
+        "onsite",
+        "localidade",
+        "remoto",
+        "híbrido",
+        "presencial",
+    ),
+    (
+        "how to apply",
+        "apply at",
+        "apply here",
+        "application instructions",
+        "candidatar-se",
+        "como se candidatar",
+        "inscreva-se",
+    ),
 )
 
 ADZUNA_DETAIL_PATTERN = re.compile(r"^/details/\d+/?$")
@@ -98,6 +166,68 @@ def _extract_title(html: str) -> str:
     if not match:
         return ""
     return re.sub(r"\s+", " ", match.group(1)).strip().lower()
+
+
+def _job_detail_signal_count(text: str) -> int:
+    return sum(
+        any(signal in text for signal in group)
+        for group in JOB_DETAIL_SIGNAL_GROUPS
+    )
+
+
+def _has_job_posting_signals(
+    title: str,
+    body: str,
+    *,
+    require_job_intent: bool = False,
+) -> bool:
+    title_and_body = f"{title} {body}".lower()
+    body = body.lower()
+    has_job_intent = any(signal in title_and_body for signal in JOB_INTENT_SIGNALS)
+    detail_count = _job_detail_signal_count(body)
+
+    if require_job_intent:
+        return has_job_intent and detail_count >= 2
+    return (has_job_intent and detail_count >= 2) or detail_count >= 3
+
+
+def _contains_job_posting_schema(value: object) -> bool:
+    if isinstance(value, dict):
+        schema_type = value.get("@type")
+        types = schema_type if isinstance(schema_type, list) else [schema_type]
+        if any(
+            isinstance(item, str)
+            and item.rstrip("/").rsplit("/", 1)[-1].lower() == "jobposting"
+            for item in types
+        ):
+            return True
+        return any(_contains_job_posting_schema(item) for item in value.values())
+    if isinstance(value, list):
+        return any(_contains_job_posting_schema(item) for item in value)
+    return False
+
+
+def _has_job_posting_schema(html: str) -> bool:
+    if re.search(
+        r"""itemtype\s*=\s*["'][^"']*schema\.org/JobPosting["']""",
+        html,
+        flags=re.IGNORECASE,
+    ):
+        return True
+
+    scripts = re.findall(
+        r"""<script\b[^>]*type\s*=\s*(?:"application/ld\+json"|'application/ld\+json')[^>]*>(.*?)</script>""",
+        html,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+    for script in scripts:
+        try:
+            data = json.loads(script)
+        except json.JSONDecodeError:
+            continue
+        if _contains_job_posting_schema(data):
+            return True
+    return False
 
 
 def _check_redirect_target(original_url: str, final_url: str, source: str | None) -> str | None:
@@ -163,14 +293,13 @@ def check_url_alive(url: str, source: str | None = None) -> tuple[bool, str]:
 
         content_type = response.headers.get("Content-Type", "").lower()
         if "text/html" in content_type:
-            has_job_schema = '"jobposting"' in raw_html or "'jobposting'" in raw_html
+            has_job_schema = _has_job_posting_schema(response.text)
 
             # Casca SPA vazia (Next.js/React que não renderizou conteúdo)
             if not has_job_schema and len(visible_text) < 250:
                 return False, "soft_404_thin_or_empty_page"
 
-            # Validação positiva: precisa ter schema JobPosting ou termos reais de vaga/candidatura
-            if not has_job_schema and not any(sig in visible_text for sig in ACTIVE_JOB_SIGNALS):
+            if not has_job_schema and not _has_job_posting_signals(page_title, visible_text):
                 return False, "soft_404_no_job_signals"
 
         return True, ""
@@ -181,19 +310,63 @@ def check_url_alive(url: str, source: str | None = None) -> tuple[bool, str]:
         return False, "dead_link_connection_error"
 
 
-def is_github_issue_open(url: str) -> bool:
-    """Consulta a API do GitHub para verificar se a vaga (issue) ainda está aberta."""
-    match = re.match(r"https://github\.com/([^/]+)/([^/]+)/issues/(\d+)", url)
-    if not match:
-        return True
+def _fetch_github_issue(url: str) -> tuple[dict | None, str]:
+    parts = urlsplit(url)
+    match = re.fullmatch(r"/([^/]+)/([^/]+)/issues/(\d+)/?", parts.path)
+    if parts.scheme != "https" or parts.hostname != "github.com" or not match:
+        return None, "github_issue_not_valid_job"
 
     owner, repo, issue_number = match.groups()
     api_url = f"https://api.github.com/repos/{owner}/{repo}/issues/{issue_number}"
 
     try:
         response = httpx.get(api_url, timeout=5.0, headers=DEFAULT_HEADERS)
-        if response.status_code == 200:
-            return response.json().get("state") == "open"
-        return False
     except httpx.RequestError:
-        return False
+        return None, "github_issue_check_failed"
+
+    if response.status_code == 404:
+        return None, "github_issue_not_valid_job"
+    if response.status_code != 200:
+        return None, "github_issue_check_failed"
+
+    try:
+        issue = response.json()
+    except json.JSONDecodeError:
+        return None, "github_issue_check_failed"
+    if not isinstance(issue, dict):
+        return None, "github_issue_check_failed"
+    return issue, ""
+
+
+def check_github_issue_job_posting(url: str) -> tuple[bool, str]:
+    """Distinguishes invalid GitHub issues from temporary API failures."""
+    issue, error = _fetch_github_issue(url)
+    if error:
+        return False, error
+    if issue is None or issue.get("state") != "open" or "pull_request" in issue:
+        return False, "github_issue_not_valid_job"
+
+    title = issue.get("title")
+    body = issue.get("body")
+    if not isinstance(title, str) or not isinstance(body, str):
+        return False, "github_issue_not_valid_job"
+    if not _has_job_posting_signals(title, body, require_job_intent=True):
+        return False, "github_issue_not_valid_job"
+    return True, ""
+
+
+def is_github_issue_open(url: str) -> bool:
+    """Consulta a API do GitHub e rejeita issues fechadas e pull requests."""
+    issue, error = _fetch_github_issue(url)
+    return bool(
+        not error
+        and issue
+        and issue.get("state") == "open"
+        and "pull_request" not in issue
+    )
+
+
+def is_github_issue_job_posting(url: str) -> bool:
+    """Confirma que a issue está aberta, não é PR e contém sinais de vaga."""
+    valid, _ = check_github_issue_job_posting(url)
+    return valid

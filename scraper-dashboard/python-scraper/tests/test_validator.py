@@ -1,28 +1,44 @@
 from datetime import datetime, timedelta, timezone
-from unittest.mock import patch
-import httpx
-from scraper.validation.job_validator import split_valid_invalid, validate_job, _is_link_alive
-from scraper.models.job import NormalizedJob
+from unittest.mock import Mock, patch
 
 import pytest
+
+from scraper.fetching.http_client import check_url_alive
+from scraper.models.job import NormalizedJob
+from scraper.validation.job_validator import split_valid_invalid, validate_job
+
+
 @pytest.fixture(autouse=True)
 def mock_all_network_requests():
-    """Intercepts httpx.head globally so normal tests do not make real internet calls."""
-    with patch("scraper.validation.job_validator.httpx.head") as mock_head:
-        mock_head.return_value.status_code = 200
-        yield mock_head
+    """Intercepts HTTP requests so validator tests never access the network."""
+    with patch("scraper.fetching.http_client.httpx.get") as mock_get:
+        def successful_get(url: str, **kwargs):
+            response = Mock(status_code=200, url=url, text="")
+            response.headers = {"Content-Type": "application/json"}
+            return response
+
+        mock_get.side_effect = successful_get
+        yield mock_get
 
 
+@patch("scraper.fetching.http_client.httpx.get")
+def test_link_returns_true_for_200(mock_get):
+    url = "https://adzuna.com.br/valid"
+    response = Mock(status_code=200, url=url, text="")
+    response.headers = {"Content-Type": "application/json"}
+    mock_get.return_value = response
 
-@patch("scraper.validation.job_validator.httpx.head")
-def test_link_returns_true_for_200(mock_head):
-    mock_head.return_value.status_code = 200
-    assert _is_link_alive("https://adzuna.com.br/valid") is True
+    assert check_url_alive(url, source="adzuna") == (True, "")
+    mock_get.assert_called_once()
 
-@patch("scraper.validation.job_validator.httpx.head")
-def test_link_returns_false_for_404(mock_head):
-    mock_head.return_value.status_code = 404
-    assert _is_link_alive("https://adzuna.com.br/notfound") is False
+
+@patch("scraper.fetching.http_client.httpx.get")
+def test_link_returns_false_for_404(mock_get):
+    url = "https://adzuna.com.br/notfound"
+    mock_get.return_value = Mock(status_code=404)
+
+    assert check_url_alive(url, source="adzuna") == (False, "dead_link_404")
+    mock_get.assert_called_once()
 
 
 def make_job(**changes) -> NormalizedJob:
@@ -36,7 +52,10 @@ def make_job(**changes) -> NormalizedJob:
         source_url="https://www.adzuna.com.br/details/5913094087",
         title="Desenvolvedor Python Júnior",
         company="Empresa X",
-        description="Vaga para desenvolvedor Python com experiência em APIs REST e testes.",
+        description=(
+            "Vaga para desenvolvedor Python com experiência em APIs REST e testes, "
+            "com colaboração diária em equipe multidisciplinar."
+        ),
         published_at=datetime.now(timezone.utc) - timedelta(days=2),
     )
     base.update(changes)
