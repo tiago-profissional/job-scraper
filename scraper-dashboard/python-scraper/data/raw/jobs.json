@@ -839,7 +839,7 @@
     "source": "remotive",
     "external_id": "2091168",
     "first_seen_at": "2026-11-07T14:58:20.537410+00:00",
-    "last_seen_at": "2026-11-19T15:06:48.853147+00:00",
+    "last_seen_at": "2026-11-19T17:00:37.211183+00:00",
     "fetched_at": "2026-11-07T14:58:20.537410+00:00",
     "payload": {
       "id": 2091168,
@@ -864,7 +864,7 @@
     "source": "remotive",
     "external_id": "1185979",
     "first_seen_at": "2026-11-07T14:58:20.537410+00:00",
-    "last_seen_at": "2026-11-19T15:06:48.853147+00:00",
+    "last_seen_at": "2026-11-19T17:00:37.211183+00:00",
     "fetched_at": "2026-11-07T14:58:20.537410+00:00",
     "payload": {
       "id": 1185979,
@@ -888,7 +888,7 @@
     "source": "remotive",
     "external_id": "2091166",
     "first_seen_at": "2026-11-07T14:58:20.537410+00:00",
-    "last_seen_at": "2026-11-19T15:06:48.853147+00:00",
+    "last_seen_at": "2026-11-19T17:00:37.211183+00:00",
     "fetched_at": "2026-11-07T14:58:20.537410+00:00",
     "payload": {
       "id": 2091166,
@@ -915,7 +915,7 @@
     "source": "remotive",
     "external_id": "1749306",
     "first_seen_at": "2026-11-07T14:58:20.537410+00:00",
-    "last_seen_at": "2026-11-19T15:06:48.853147+00:00",
+    "last_seen_at": "2026-11-19T17:00:37.211183+00:00",
     "fetched_at": "2026-11-07T14:58:20.537410+00:00",
     "payload": {
       "id": 1749306,
@@ -948,7 +948,7 @@
     "source": "remotive",
     "external_id": "2091165",
     "first_seen_at": "2026-11-07T14:58:20.537410+00:00",
-    "last_seen_at": "2026-11-19T15:06:48.853147+00:00",
+    "last_seen_at": "2026-11-19T17:00:37.211183+00:00",
     "fetched_at": "2026-11-07T14:58:20.537410+00:00",
     "payload": {
       "id": 2091165,
@@ -997,7 +997,7 @@
     "source": "remotive",
     "external_id": "2091135",
     "first_seen_at": "2026-11-07T14:58:20.537410+00:00",
-    "last_seen_at": "2026-11-19T15:06:48.853147+00:00",
+    "last_seen_at": "2026-11-19T17:00:37.211183+00:00",
     "fetched_at": "2026-11-07T14:58:20.537410+00:00",
     "payload": {
       "id": 2091135,
@@ -1093,7 +1093,7 @@
     "source": "remotive",
     "external_id": "2091161",
     "first_seen_at": "2026-11-07T14:58:20.537410+00:00",
-    "last_seen_at": "2026-11-19T15:06:48.853147+00:00",
+    "last_seen_at": "2026-11-19T17:00:37.211183+00:00",
     "fetched_at": "2026-11-07T14:58:20.537410+00:00",
     "payload": {
       "id": 2091161,
@@ -1203,7 +1203,7 @@
     "source": "remotive",
     "external_id": "1680495",
     "first_seen_at": "2026-11-07T14:58:20.537410+00:00",
-    "last_seen_at": "2026-11-19T15:06:48.853147+00:00",
+    "last_seen_at": "2026-11-19T17:00:37.211183+00:00",
     "fetched_at": "2026-11-15T19:25:12.837767+00:00",
     "payload": {
       "id": 1680495,
@@ -1245,7 +1245,7 @@
     "source": "remotive",
     "external_id": "2086540",
     "first_seen_at": "2026-11-07T14:58:20.537410+00:00",
-    "last_seen_at": "2026-11-19T15:06:48.853147+00:00",
+    "last_seen_at": "2026-11-19T17:00:37.211183+00:00",
     "fetched_at": "2026-11-11T16:30:45.981910+00:00",
     "payload": {
       "id": 2086540,
@@ -12892,7 +12892,7 @@
     "source": "remotive",
     "external_id": "2091045",
     "first_seen_at": "2026-11-11T16:30:45.981910+00:00",
-    "last_seen_at": "2026-11-19T15:06:48.853147+00:00",
+    "last_seen_at": "2026-11-19T17:00:37.211183+00:00",
     "fetched_at": "2026-11-11T16:30:45.981910+00:00",
     "payload": {
       "id": 2091045,
@@ -23582,7 +23582,7 @@
     "source": "remotive",
     "external_id": "2091136",
     "first_seen_at": "2026-11-12T14:09:56.702647+00:00",
-    "last_seen_at": "2026-11-19T15:06:48.853147+00:00",
+    "last_seen_at": "2026-11-19T17:00:37.211183+00:00",
     "fetched_at": "2026-11-12T14:09:56.702647+00:00",
     "payload": {
       "id": 2091136,
@@ -29264,7 +29264,7 @@
     "source": "remotive",
     "external_id": "2091171",
     "first_seen_at": "2026-11-12T15:07:34.107203+00:00",
-    "last_seen_at": "2026-11-19T15:06:48.853147+00:00",
+    "last_seen_at": "2026-11-19T17:00:37.211183+00:00",
     "fetched_at": "2026-11-12T15:07:34.107203+00:00",
     "payload": {
       "id": 2091171,
@@ -30869,7 +30869,7 @@
     "source": "remotive",
     "external_id": "2091173",
     "first_seen_at": "2026-11-15T19:25:12.837767+00:00",
-    "last_seen_at": "2026-11-19T15:06:48.853147+00:00",
+    "last_seen_at": "2026-11-19T17:00:37.211183+00:00",
     "fetched_at": "2026-11-15T19:25:12.837767+00:00",
     "payload": {
       "id": 2091173,
@@ -30901,7 +30901,7 @@
     "source": "remotive",
     "external_id": "2091137",
     "first_seen_at": "2026-11-15T19:25:12.837767+00:00",
-    "last_seen_at": "2026-11-19T15:06:48.853147+00:00",
+    "last_seen_at": "2026-11-19T17:00:37.211183+00:00",
     "fetched_at": "2026-11-15T19:25:12.837767+00:00",
     "payload": {
       "id": 2091137,
@@ -31271,7 +31271,7 @@
     "source": "arbeitnow",
     "external_id": "sha256:455b6f92504c227b457a587acb8efa71d2eef3f4cd40a3e942fe70bbe0a5aa5c",
     "first_seen_at": "2026-11-19T14:20:32.994719+00:00",
-    "last_seen_at": "2026-11-19T15:01:22.816693+00:00",
+    "last_seen_at": "2026-11-19T17:00:37.211183+00:00",
     "fetched_at": "2026-11-19T14:20:32.994719+00:00",
     "payload": {
       "slug": "remote-principal-software-engineer-data-lakes-26266",
@@ -31292,7 +31292,7 @@
     "source": "arbeitnow",
     "external_id": "sha256:d316cc182401a78f7b11f3a86037544c5f90121acdc14b108d0bbee4fe81b6b5",
     "first_seen_at": "2026-11-19T14:20:32.994719+00:00",
-    "last_seen_at": "2026-11-19T15:06:48.853147+00:00",
+    "last_seen_at": "2026-11-19T17:00:37.211183+00:00",
     "fetched_at": "2026-11-19T14:20:32.994719+00:00",
     "payload": {
       "slug": "backend-software-engineer-ml-inference-berlin-153142",
@@ -31315,7 +31315,7 @@
     "source": "arbeitnow",
     "external_id": "sha256:02b333177bf00aad3d1f4266b4e8f98b16e6289fa225649d5a79ad5c0e87468d",
     "first_seen_at": "2026-11-19T14:20:32.994719+00:00",
-    "last_seen_at": "2026-11-19T15:01:22.816693+00:00",
+    "last_seen_at": "2026-11-19T17:00:37.211183+00:00",
     "fetched_at": "2026-11-19T14:20:32.994719+00:00",
     "payload": {
       "slug": "senior-program-manager-berlin-3264",
@@ -31589,6 +31589,31 @@
       ],
       "location": "Berlin",
       "created_at": 1795081214
+    }
+  },
+  {
+    "source": "arbeitnow",
+    "external_id": "sha256:70494aebe2a05130f5ae9317ce9ef56d032eba2142e451c20060e8306cb4dd3f",
+    "first_seen_at": "2026-11-19T16:57:50.602219+00:00",
+    "last_seen_at": "2026-11-19T17:00:37.211183+00:00",
+    "fetched_at": "2026-11-19T16:57:50.602219+00:00",
+    "payload": {
+      "slug": "senior-product-designer-in-tech-data-team-berlin-49906",
+      "company_name": "Thomann.io",
+      "title": "Senior Product Designer (f/x/m) in Tech & Data Team",
+      "description": "<p><strong>Join our Storefront Team – shape the first impression of Thomann!</strong></p><p>We are the Storefront Team – the creative minds behind the entry experience of the Thomann webshop. Our mission is to welcome musicians into our world of gear and make sure their very first interaction feels inspiring, intuitive, and effortless. Whether users arrive with a clear goal or just a spark of curiosity, we guide them into the shop with clarity, confidence, and excitement.</p><p>From designing engaging entry points and start pages to crafting seamless first-touch interactions, we create the digital front door to Europe’s biggest music store. In short – we set the stage where curiosity turns into discovery and visitors become customers.</p><p>To support our mission, we’re now looking for a <strong>Senior Product Designer (f/x/m)</strong> to join our team. You’ll be responsible for shaping the journeys that help users enter the shop, understand what’s possible, and take their first steps toward finding the right gear.</p><p>If you’re a design enthusiast who loves crafting meaningful first impressions, thrives on user-centric thinking, and wants to influence how millions of musicians start their journey with Thomann, we’d love to get to know you!</p><p><strong>Want to find out more about the teams and <a rel=\"noopener\" target=\"_blank\" href=\"http://thomann.io?\">thomann.io?</a></strong></p><br /><br /><h3>Here’s what you’ll be doing</h3><ul><li><p>Create intuitive, welcoming and high-performing storefront experiences that spark engagement and guide customers into the shop with confidence and clarity</p></li><li><p>Translate customer insights, business requirements, and analytics into thoughtful flows, interaction patterns, and design decisions</p></li><li><p>Build and iterate on prototypes ranging from low-fidelity to polished, interactive concepts</p></li><li><p>Collaborate closely with Product Management and Engineering to refine requirements, align on scope, and ensure design feasibility</p></li><li><p>Leverage experimentation (A/B tests, usability studies, click behavior) to optimize conversion, usability and engagement</p></li><li><p>Design for scalability across regions, devices, and touchpoints</p></li><li><p>Champion UX by bringing a thoughtful design perspective to discussions, proactively communicate rationale, and continuously push for intuitive, accessible experiences</p></li><li><p>Contribute to our design system and advocate for consistent, customer-centric design practices</p><p style=\";\"></p></li></ul><h3>What you should bring to the table</h3><ul><li><p>5+ years of UX/Interaction Design experience, ideally in the e-commerce sector</p></li><li><p>A portfolio showcasing your process, design reasoning, interaction design skills, and measurable impact</p></li><li><p>Ability to balance user needs, business goals, and technical feasibility</p></li><li><p>Strong skills in visual communication, interaction design, and information hierarchy</p></li><li><p>You thrive enjoyment in agile, cross-functional teams, turning raw ideas into shippable product innovations</p></li><li><p>Power user of Figma and the modern UXux stack (i.e. Lovable, Dovetail, Storybook, etc.)</p></li><li><p>Your toolkit includes Design Thinking, User Research, and A/B testing, backed by a strong drive for data-driven solutions</p></li><li><p>You bridge gaps effortlessly with professional fluency in German and English</p></li></ul><p style=\";\"></p><h3>What we have to offer</h3><ul><li><p>Flexible working hours and location, with the option to go into the office (fully-remote possible)</p></li><li><p>13th salary in November</p></li><li><p>Further training opportunities with clear development paths for your career</p></li><li><p>Thomann.de employee discount</p></li><li><p>Personal work equipment according to your wishes and regarding your role</p></li><li><p>Regular team events</p></li><li><p>English or German language courses</p></li><li><p>1:1 sessions with an external coach, for professional development</p></li><li><p>Urban Sports Club discount</p></li><li><p>and more! Check out our <a rel=\"noopener\" target=\"_blank\" href=\"https://handbook.thomann.io/\">Handbook</a></p></li></ul><p style=\";\"></p><h3>We value inclusion and diversity</h3><p>We pride ourselves on being an inclusive employer that creates a welcoming atmosphere, and value diversity in our teams. We do not make judgements based on ethnicity, nationality, age, marital status, gender identity, sexual orientation, disability status, or religion.</p><p>Find more <a href=\"https://www.arbeitnow.com/english-speaking-jobs\">English Speaking Jobs in Germany</a> on Arbeitnow</a>",
+      "remote": false,
+      "url": "https://www.arbeitnow.com/jobs/companies/thomannio/senior-product-designer-in-tech-data-team-berlin-49906",
+      "tags": [
+        "Information technology",
+        "high school or equivalent"
+      ],
+      "job_types": [
+        "Full-time permanent",
+        "experienced"
+      ],
+      "location": "Berlin",
+      "created_at": 1795098010
     }
   }
 ]
