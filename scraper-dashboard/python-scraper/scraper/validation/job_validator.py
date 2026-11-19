@@ -4,6 +4,10 @@ from urllib.parse import urlsplit
 
 from scraper.fetching.http_client import check_url_alive, is_github_issue_job_posting
 from scraper.models.job import NormalizedJob, WorkMode
+from scraper.normalization.job_normalizer import (
+    extract_external_apply_url,
+    is_github_url,
+)
 
 ALLOWED_DOMAINS = {
     "adzuna": ("adzuna.com.br",),
@@ -25,18 +29,6 @@ BLOCKED_PATH_SEGMENTS = {
 }
 
 GENERIC_TITLES = {"vagas", "jobs", "resultados", "search results"}
-
-IGNORED_DESCRIPTION_HOSTS = {
-    "chat.whatsapp.com",
-    "wa.me",
-    "t.me",
-    "telegram.me",
-    "linkedin.com",
-    "www.linkedin.com",
-    "github.com",
-    "instagram.com",
-    "youtube.com",
-}
 
 # Padrões para barrar vagas em alemão / outros idiomas fora do escopo PT/EN
 GERMAN_GENDER_TAG = re.compile(r"\([mwfd]/[mwfd]/[mwfd]\)", re.IGNORECASE)
@@ -157,18 +149,6 @@ def _is_outside_target_scope(job: NormalizedJob) -> bool:
     return not is_remote
 
 
-def _extract_apply_url_from_description(description: str) -> str | None:
-    """Extrai o primeiro link externo de candidatura da descrição, ignorando redes sociais."""
-    urls = re.findall(r"https?://[^\s<>\"')]+", description)
-    for raw_url in urls:
-        clean_url = raw_url.rstrip(".,;:!?")
-        parsed = urlsplit(clean_url)
-        host = (parsed.hostname or "").lower()
-        if host and host not in IGNORED_DESCRIPTION_HOSTS and "/referral" not in parsed.path.lower():
-            return clean_url
-    return None
-
-
 def validate_job(job: NormalizedJob) -> list[str]:
     """Returns rejection reasons for a job. An empty list indicates a valid job."""
     reasons = []
@@ -229,13 +209,42 @@ def validate_job(job: NormalizedJob) -> list[str]:
                 reasons.append(error_reason)
 
         target_apply_url = str(job.apply_url) if job.apply_url else None
-        if not target_apply_url and is_github_issue and job.description:
-            target_apply_url = _extract_apply_url_from_description(job.description)
+        if (
+            is_github_issue
+            and job.description
+            and (not target_apply_url or is_github_url(target_apply_url))
+        ):
+            extracted_url = extract_external_apply_url(job.description)
+            if extracted_url:
+                target_apply_url = extracted_url
+                job.apply_url = extracted_url
+        elif (
+            not target_apply_url
+            and job.source in {"adzuna", "remotive", "arbeitnow"}
+            and not is_github_url(url)
+        ):
+            target_apply_url = url
+            job.apply_url = url
 
-        if not reasons and target_apply_url and target_apply_url != url:
-            apply_alive, apply_error = check_url_alive(target_apply_url)
-            if not apply_alive:
-                reasons.append(f"apply_{apply_error}")
+        if not target_apply_url:
+            reasons.append("missing_apply_url")
+        else:
+            try:
+                apply_parts = urlsplit(target_apply_url)
+            except ValueError:
+                reasons.append("invalid_apply_url")
+                return reasons
+            if apply_parts.scheme not in ("http", "https") or not apply_parts.hostname:
+                reasons.append("invalid_apply_url")
+            elif is_github_url(target_apply_url):
+                reasons.append("apply_url_points_to_github")
+            elif not reasons and target_apply_url != url:
+                apply_alive, apply_error = check_url_alive(
+                    target_apply_url,
+                    require_job_posting=False,
+                )
+                if not apply_alive:
+                    reasons.append(f"apply_{apply_error}")
 
     return reasons
 

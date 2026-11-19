@@ -1,6 +1,7 @@
 import html
 import re
 from datetime import datetime, timezone
+from urllib.parse import urlsplit
 
 from bs4 import BeautifulSoup
 
@@ -28,6 +29,16 @@ ATS_REGEX = re.compile(
     re.IGNORECASE
 )
 
+IGNORED_DESCRIPTION_HOSTS = {
+    "chat.whatsapp.com",
+    "wa.me",
+    "t.me",
+    "telegram.me",
+    "github.com",
+    "instagram.com",
+    "youtube.com",
+}
+
 
 def extract_ats_apply_url(description: str | None) -> str | None:
     """Extrai apenas links diretos de plataformas de RH/ATS reconhecidas."""
@@ -36,6 +47,61 @@ def extract_ats_apply_url(description: str | None) -> str | None:
     match = ATS_REGEX.search(description)
     if match:
         return match.group(0).rstrip(".,;)")
+    return None
+
+
+def is_github_url(url: str | None) -> bool:
+    if not url:
+        return False
+    try:
+        host = (urlsplit(str(url)).hostname or "").lower().rstrip(".")
+    except ValueError:
+        return False
+    return host == "github.com" or host.endswith(".github.com")
+
+
+def is_github_issue_url(url: str | None) -> bool:
+    if not url:
+        return False
+    try:
+        parts = urlsplit(str(url))
+    except ValueError:
+        return False
+    return bool(
+        parts.scheme == "https"
+        and parts.hostname == "github.com"
+        and re.fullmatch(r"/[^/]+/[^/]+/issues/\d+/?", parts.path)
+    )
+
+
+def extract_external_apply_url(description: str | None) -> str | None:
+    """Extract the first usable external link from a job description."""
+    if not description:
+        return None
+
+    soup = BeautifulSoup(description, "html.parser")
+    candidates = [anchor.get("href", "") for anchor in soup.find_all("a", href=True)]
+    candidates.extend(re.findall(r"https?://[^\s<>\"')\]]+", description))
+
+    for raw_url in candidates:
+        clean_url = html.unescape(raw_url).rstrip(".,;:!?)]}")
+        try:
+            parsed = urlsplit(clean_url)
+        except ValueError:
+            continue
+        host = (parsed.hostname or "").lower().rstrip(".")
+        if (
+            parsed.scheme not in ("http", "https")
+            or not host
+            or is_github_url(clean_url)
+            or any(
+                host == ignored or host.endswith("." + ignored)
+                for ignored in IGNORED_DESCRIPTION_HOSTS
+            )
+            or "/referral" in parsed.path.lower()
+        ):
+            continue
+        return clean_url
     return None
 
 
@@ -187,13 +253,23 @@ def normalize_date(value: str | datetime | None) -> datetime | None:
 def normalize_job(raw: RawJob) -> NormalizedJob:
     cleaned_desc = clean_description(raw.description)
     city, state = split_location(raw.location_area)
+    apply_url = extract_ats_apply_url(raw.description)
+
+    if not apply_url and is_github_issue_url(raw.source_url):
+        apply_url = extract_external_apply_url(raw.description)
+    elif (
+        not apply_url
+        and raw.source in {"adzuna", "remotive", "arbeitnow"}
+        and not is_github_url(str(raw.source_url))
+    ):
+        apply_url = str(raw.source_url)
 
     data = raw.model_dump()
     data.update(
         title=clean_title(raw.title),
         company=clean_company(raw.company),
         description=cleaned_desc,
-        apply_url=extract_ats_apply_url(raw.description),
+        apply_url=apply_url,
         work_mode=normalize_work_mode(f"{raw.title} {raw.description}"),
         seniority=normalize_seniority(raw.title),
         employment_type=normalize_employment_type(raw.employment_type),

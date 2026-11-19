@@ -2,12 +2,15 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from scraper.models.job import EmploymentType, Seniority, WorkMode
+import pytest
+
+from scraper.models.job import EmploymentType, RawJob, Seniority, WorkMode
 from scraper.normalization.job_normalizer import (
     clean_company,
     clean_description,
     clean_text,
     clean_title,
+    extract_external_apply_url,
     normalize_date,
     normalize_employment_type,
     normalize_job,
@@ -160,6 +163,62 @@ def test_normalize_job_on_real_fixture():
     assert jobs[0].raw["title"] == "Desenvolvedor Para Ios"
     
     
+def test_normalize_job_extracts_non_ats_application_url():
+    raw = RawJob(
+        source="arbeitnow",
+        source_url="https://github.com/acme/jobs/issues/201",
+        title="Backend Engineer",
+        company="Acme",
+        description="How to apply: [Apply here](https://careers.example.com/backend).",
+        fetched_at="2026-11-19T12:00:00Z",
+    )
+
+    assert normalize_job(raw).apply_url == "https://careers.example.com/backend"
+
+
+@pytest.mark.parametrize(
+    ("source", "source_url"),
+    [
+        ("adzuna", "https://www.adzuna.com.br/details/123"),
+        ("remotive", "https://remotive.com/remote-jobs/backend/123"),
+        ("arbeitnow", "https://www.arbeitnow.com/job/backend-123"),
+    ],
+)
+def test_normalize_job_uses_non_github_source_url_without_ats(source, source_url):
+    raw = RawJob(
+        source=source,
+        source_url=source_url,
+        title="Backend Engineer",
+        company="Acme",
+        description="A sufficiently detailed job description without an ATS link.",
+        fetched_at="2026-11-19T12:00:00Z",
+    )
+
+    assert str(normalize_job(raw).apply_url) == source_url
+
+
+def test_github_issue_without_external_url_has_no_apply_url():
+    raw = RawJob(
+        source="arbeitnow",
+        source_url="https://github.com/acme/jobs/issues/201",
+        title="Backend Engineer",
+        company="Acme",
+        description="A job description without an external application link.",
+        fetched_at="2026-11-19T12:00:00Z",
+    )
+
+    assert normalize_job(raw).apply_url is None
+
+
+def test_external_apply_url_extraction_rejects_github_and_keeps_linkedin():
+    description = (
+        "Repo: https://github.com/acme/jobs/issues/1 "
+        "Apply: https://www.linkedin.com/jobs/view/123"
+    )
+
+    assert extract_external_apply_url(description) == "https://www.linkedin.com/jobs/view/123"
+
+
 def test_technologies_node_variants():
     assert normalize_technologies("Node JS") == ["Node.js"]
     assert normalize_technologies("nodejs") == ["Node.js"]

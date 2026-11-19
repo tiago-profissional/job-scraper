@@ -56,6 +56,7 @@ def make_job(**changes) -> NormalizedJob:
             "Vaga para desenvolvedor Python com experiência em APIs REST e testes, "
             "com colaboração diária em equipe multidisciplinar."
         ),
+        apply_url="https://apply.example.com/backend",
         published_at=datetime.now(timezone.utc) - timedelta(days=2),
     )
     base.update(changes)
@@ -107,6 +108,38 @@ def test_unknown_source():
 def test_wrong_domain():
     job = make_job(source_url="https://www.example.com/details/123")
     assert "domain_not_allowed" in validate_job(job)
+
+
+def test_missing_apply_url_uses_non_github_source_url():
+    job = make_job(
+        apply_url=None,
+        description=(
+            "Vaga para desenvolvimento de software com responsabilidades e requisitos "
+            "descritos em detalhes, mas sem nenhum endereço externo de candidatura."
+        ),
+    )
+
+    assert validate_job(job) == []
+    assert job.apply_url == str(job.source_url)
+
+
+def test_github_apply_url_is_rejected():
+    job = make_job(apply_url="https://github.com/acme/jobs/issues/201")
+
+    assert "apply_url_points_to_github" in validate_job(job)
+
+
+@patch("scraper.validation.job_validator.check_url_alive", return_value=(True, ""))
+def test_application_url_is_checked_without_job_posting_signals(mock_check_url):
+    job = make_job(apply_url="https://apply.example.com/backend")
+
+    assert validate_job(job) == []
+    assert mock_check_url.call_args_list[1].args == (
+        "https://apply.example.com/backend",
+    )
+    assert mock_check_url.call_args_list[1].kwargs == {
+        "require_job_posting": False,
+    }
 
 
 def test_subdomain_is_allowed():

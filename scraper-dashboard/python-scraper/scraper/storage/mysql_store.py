@@ -15,7 +15,10 @@ except ImportError:
 
 from scraper.fetching.http_client import check_github_issue_job_posting, check_url_alive
 from scraper.models.job import NormalizedJob
-from scraper.validation.job_validator import _extract_apply_url_from_description
+from scraper.normalization.job_normalizer import (
+    extract_external_apply_url,
+    is_github_url,
+)
 
 # Ignora falhas transitórias de rede; remove apenas links ou vagas comprovadamente inválidos.
 CONFIRMED_DEAD_PREFIXES = (
@@ -30,6 +33,9 @@ CONFIRMED_DEAD_PREFIXES = (
     "soft_404_adzuna_redirect",
     "dead_link_404",
     "dead_link_410",
+    "missing_apply_url",
+    "invalid_apply_url",
+    "github_apply_url_not_allowed",
 )
 
 REQUIRED_COLUMNS: dict[str, str] = {
@@ -198,31 +204,65 @@ def persist_jobs_to_mysql(jobs: list[NormalizedJob]) -> None:
         print(f"❌ Erro ao conectar/salvar no MySQL: {err}")
 
 
-def _check_stored_row(row: tuple) -> tuple[int, str, str]:
-    """Retorna (id, title, motivo_remocao) se a vaga salva no banco estiver morta."""
-    job_id, title, source_url, apply_url, description = row
+def _check_stored_row(row: tuple) -> tuple[int, str, str, str | None]:
+    """Retorna (id, título, motivo, apply_url inferida) para uma linha salva."""
+    job_id, title, source, source_url, apply_url, description = row
     parts = urlsplit(source_url or "")
     is_github_issue = parts.hostname == "github.com" and "/issues/" in parts.path
 
     if is_github_issue:
         is_valid_job, issue_reason = check_github_issue_job_posting(source_url)
-        if not is_valid_job and issue_reason.startswith(CONFIRMED_DEAD_PREFIXES):
-            return job_id, title, issue_reason
+        if not is_valid_job:
+            if issue_reason.startswith(CONFIRMED_DEAD_PREFIXES):
+                return job_id, title, issue_reason, None
+            return job_id, title, "", None
     elif source_url:
-        alive, reason = check_url_alive(source_url)
-        if not alive and reason.startswith(CONFIRMED_DEAD_PREFIXES):
-            return job_id, title, reason
+        alive, reason = check_url_alive(source_url, source=source)
+        if not alive:
+            if reason.startswith(CONFIRMED_DEAD_PREFIXES):
+                return job_id, title, reason, None
+            return job_id, title, "", None
 
     target_apply = apply_url
-    if not target_apply and is_github_issue and description:
-        target_apply = _extract_apply_url_from_description(description)
+    inferred_apply_url = None
+    if (
+        is_github_issue
+        and description
+        and (not target_apply or is_github_url(target_apply))
+    ):
+        extracted_url = extract_external_apply_url(description)
+        if extracted_url:
+            target_apply = extracted_url
+            inferred_apply_url = extracted_url
+    elif (
+        not target_apply
+        and source in {"adzuna", "remotive", "arbeitnow"}
+        and source_url
+        and not is_github_url(source_url)
+    ):
+        target_apply = source_url
+        inferred_apply_url = source_url
+
+    if not target_apply:
+        return job_id, title, "missing_apply_url", None
+
+    try:
+        apply_parts = urlsplit(target_apply)
+    except ValueError:
+        return job_id, title, "invalid_apply_url", None
+    if apply_parts.scheme not in ("http", "https") or not apply_parts.hostname:
+        return job_id, title, "invalid_apply_url", None
+    if is_github_url(target_apply):
+        return job_id, title, "github_apply_url_not_allowed", None
 
     if target_apply and target_apply != source_url:
-        alive, reason = check_url_alive(target_apply)
+        alive, reason = check_url_alive(target_apply, require_job_posting=False)
         if not alive and reason.startswith(CONFIRMED_DEAD_PREFIXES):
-            return job_id, title, f"apply_{reason}"
+            return job_id, title, f"apply_{reason}", None
+        if not alive:
+            return job_id, title, "", None
 
-    return job_id, title, ""
+    return job_id, title, "", inferred_apply_url
 
 
 def _is_confirmed_dead_reason(reason: str) -> bool:
@@ -238,7 +278,9 @@ def cleanup_dead_jobs(max_workers: int = 10) -> None:
         connection = get_db_connection()
         with connection.cursor() as cursor:
             _ensure_schema(cursor)
-            cursor.execute("SELECT id, title, source_url, apply_url, description FROM jobs")
+            cursor.execute(
+                "SELECT id, title, source, source_url, apply_url, description FROM jobs"
+            )
             rows = cursor.fetchall()
 
             if not rows:
@@ -246,14 +288,22 @@ def cleanup_dead_jobs(max_workers: int = 10) -> None:
                 return
 
             dead_ids: list[int] = []
+            apply_url_updates: list[tuple[str, int]] = []
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 futures = [executor.submit(_check_stored_row, row) for row in rows]
                 for future in as_completed(futures):
-                    job_id, title, reason = future.result()
+                    job_id, title, reason, inferred_apply_url = future.result()
                     if _is_confirmed_dead_reason(reason):
                         dead_ids.append(job_id)
                         print(f"🗑️ Removendo vaga expirada [{job_id}] '{title}': {reason}")
+                    elif inferred_apply_url:
+                        apply_url_updates.append((inferred_apply_url, job_id))
 
+            if apply_url_updates:
+                cursor.executemany(
+                    "UPDATE jobs SET apply_url = %s WHERE id = %s",
+                    apply_url_updates,
+                )
             if dead_ids:
                 placeholders = ", ".join(["%s"] * len(dead_ids))
                 cursor.execute(f"DELETE FROM jobs WHERE id IN ({placeholders})", dead_ids)

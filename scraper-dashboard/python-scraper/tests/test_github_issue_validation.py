@@ -146,6 +146,7 @@ def test_open_github_job_issue_passes_full_validation():
         "body": JOB_BODY,
     })
 
+    job = make_job()
     with (
         patch("scraper.fetching.http_client.httpx.get", return_value=response),
         patch(
@@ -153,7 +154,26 @@ def test_open_github_job_issue_passes_full_validation():
             return_value=(True, ""),
         ),
     ):
-        assert validate_job(make_job()) == []
+        assert validate_job(job) == []
+
+    assert job.apply_url == "https://careers.example.com/backend"
+
+
+def test_github_issue_without_external_apply_url_is_rejected():
+    response = api_response({
+        "state": "open",
+        "title": JOB_TITLE,
+        "body": JOB_BODY,
+    })
+    job = make_job(
+        description=(
+            "Responsibilities include building APIs and maintaining our services. "
+            "Requirements include Python experience and knowledge of databases."
+        )
+    )
+
+    with patch("scraper.fetching.http_client.httpx.get", return_value=response):
+        assert "missing_apply_url" in validate_job(job)
 
 
 def test_arbitrary_domain_is_not_allowed_for_arbeitnow():
@@ -202,6 +222,21 @@ def test_html_with_combined_job_signals_is_accepted():
 
     with patch("scraper.fetching.http_client.httpx.get", return_value=response):
         assert check_url_alive("https://example.com/jobs/backend") == (True, "")
+
+
+def test_application_form_does_not_need_job_posting_signals():
+    response = SimpleNamespace(
+        status_code=200,
+        url="https://apply.example.com/backend",
+        text="<html><body><form><input name='email'></form></body></html>",
+        headers={"Content-Type": "text/html"},
+    )
+
+    with patch("scraper.fetching.http_client.httpx.get", return_value=response):
+        assert check_url_alive(
+            "https://apply.example.com/backend",
+            require_job_posting=False,
+        ) == (True, "")
 
 
 def test_html_with_job_posting_schema_is_accepted():

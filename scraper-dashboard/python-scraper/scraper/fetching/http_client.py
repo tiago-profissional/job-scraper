@@ -260,8 +260,13 @@ def _check_redirect_target(original_url: str, final_url: str, source: str | None
     return None
 
 
-def check_url_alive(url: str, source: str | None = None) -> tuple[bool, str]:
-    """Verifica se a URL está ativa, não caiu em redirect genérico e contém uma vaga real."""
+def check_url_alive(
+    url: str,
+    source: str | None = None,
+    *,
+    require_job_posting: bool = True,
+) -> tuple[bool, str]:
+    """Verifica disponibilidade/soft 404 e, opcionalmente, sinais de uma página de vaga."""
     try:
         response = httpx.get(
             url,
@@ -292,7 +297,7 @@ def check_url_alive(url: str, source: str | None = None) -> tuple[bool, str]:
                 return False, "soft_404_expired_job"
 
         content_type = response.headers.get("Content-Type", "").lower()
-        if "text/html" in content_type:
+        if "text/html" in content_type and require_job_posting:
             has_job_schema = _has_job_posting_schema(response.text)
 
             # Casca SPA vazia (Next.js/React que não renderizou conteúdo)
