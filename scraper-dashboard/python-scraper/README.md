@@ -4,7 +4,7 @@ Um pipeline assíncrono e resiliente em Python para recolha, normalização, val
 
 ## 🚀 Funcionalidades
 
-- **Coleta Multi-fonte**: Suporte extensível via adaptadores para Adzuna, Remotive e Arbeitnow.
+- **Coleta Multi-fonte**: Suporte extensível via adaptadores para Adzuna, Remotive, Arbeitnow, Greenhouse e Ashby.
 - **Normalização Automática**: Padronização de títulos, modalidades de trabalho (`remote`, `hybrid`, `onsite`), senioridade, tecnologias e datas em UTC.
 - **Validação Rígida**: Filtro automático de registos sem título, empresa, descrição válida ou com URLs fora dos domínios autorizados.
 - **Deduplicação Inteligente**: Fusão em memória com algoritmo de chave primária composta (Fonte + ID externo, URL canónica sem parâmetros de rastreio `utm_*` e Hash SHA-256 do conteúdo).

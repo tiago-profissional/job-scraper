@@ -16,6 +16,7 @@ from scraper.models.job import (
 KNOWN_ATS_DOMAINS = [
     r"gupy\.io",
     r"greenhouse\.io",
+    r"ashbyhq\.com",
     r"lever\.co",
     r"workable\.com",
     r"solides\.jobs",
@@ -156,7 +157,7 @@ def clean_description(text: str | None) -> str:
         br.replace_with("\n")
 
     for li in soup.find_all("li"):
-        li.insert_before("\n")
+        li.insert_before("\n- ")
 
     for block in soup.find_all(BLOCK_TAGS):
         block.insert_after("\n\n")
@@ -259,7 +260,7 @@ def normalize_job(raw: RawJob) -> NormalizedJob:
         apply_url = extract_external_apply_url(raw.description)
     elif (
         not apply_url
-        and raw.source in {"adzuna", "remotive", "arbeitnow"}
+        and raw.source in {"adzuna", "remotive", "arbeitnow", "greenhouse", "ashby"}
         and not is_github_url(str(raw.source_url))
     ):
         apply_url = str(raw.source_url)

@@ -1,8 +1,39 @@
 import json
 import re
+import time
 from urllib.parse import parse_qs, urlsplit
 
 import httpx
+
+RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
+
+
+def get_json(
+    url: str,
+    params: dict[str, str | int | bool] | None = None,
+    *,
+    max_retries: int = 3,
+    backoff_factor: float = 1.0,
+    timeout: float = 10.0,
+) -> dict[str, object]:
+    for attempt in range(1, max_retries + 1):
+        try:
+            response = httpx.get(url, params=params, timeout=timeout)
+            response.raise_for_status()
+            payload = response.json()
+            if not isinstance(payload, dict):
+                raise ValueError("Expected a JSON object in the API response.")
+            return payload
+        except (httpx.HTTPStatusError, httpx.RequestError) as err:
+            status_code = getattr(getattr(err, "response", None), "status_code", None)
+            should_retry = isinstance(err, httpx.RequestError) or status_code in RETRYABLE_STATUS_CODES
+            if attempt < max_retries and should_retry:
+                time.sleep(backoff_factor * (2 ** (attempt - 1)))
+                continue
+            raise
+
+    raise RuntimeError("HTTP request exhausted retries without returning a response.")
+
 
 DEFAULT_HEADERS = {
     "User-Agent": (

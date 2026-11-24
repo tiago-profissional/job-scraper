@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import urlsplit
 
 from scraper.fetching.http_client import check_url_alive, is_github_issue_job_posting
+from scraper.fetching.job_scope import matches_target_scope
 from scraper.models.job import NormalizedJob, WorkMode
 from scraper.normalization.job_normalizer import (
     extract_external_apply_url,
@@ -13,6 +14,8 @@ ALLOWED_DOMAINS = {
     "adzuna": ("adzuna.com.br",),
     "remotive": ("remotive.com",),
     "arbeitnow": ("arbeitnow.com", "github.com"),
+    "greenhouse": ("greenhouse.io",),
+    "ashby": ("ashbyhq.com",),
     "github": ("github.com",),
 }
 
@@ -44,41 +47,6 @@ GERMAN_RECRUITMENT_WORDS = (
     "bewerbung",
     "unbefristet",
     "standort",
-)
-
-REMOTE_HINTS = (
-    "remote",
-    "remoto",
-    "home office",
-    "anywhere",
-    "worldwide",
-    "latam",
-    "latin america",
-    "américa latina",
-    "americas",
-)
-
-BRAZIL_HINTS = (
-    "brasil",
-    "brazil",
-    "ceará",
-    "ceara",
-    "fortaleza",
-    "recife",
-    "salvador",
-    "natal",
-    "joão pessoa",
-    "maceió",
-    "teresina",
-    "são luís",
-    "aracaju",
-    "são paulo",
-    "rio de janeiro",
-    "belo horizonte",
-    "curitiba",
-    "porto alegre",
-    "florianópolis",
-    "brasília",
 )
 
 FOREIGN_ONLY_RESTRICTIONS = (
@@ -142,10 +110,8 @@ def _is_outside_target_scope(job: NormalizedJob) -> bool:
     if any(restriction in location_text for restriction in FOREIGN_ONLY_RESTRICTIONS):
         return True
 
-    if any(br in location_text for br in BRAZIL_HINTS):
-        return False
-
-    is_remote = job.work_mode == WorkMode.REMOTE or any(r in location_text for r in REMOTE_HINTS)
+    target_text = f"{location_text} {job.description}"
+    is_remote = job.work_mode == WorkMode.REMOTE or matches_target_scope(target_text)
     return not is_remote
 
 

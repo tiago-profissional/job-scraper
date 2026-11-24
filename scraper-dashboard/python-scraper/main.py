@@ -1,7 +1,9 @@
 from scraper.models.job import NormalizedJob
 from scraper.normalization.job_normalizer import normalize_job
+from scraper.sources.ashby import AshbyAdapter
 from scraper.sources.adzuna import AdzunaAdapter
 from scraper.sources.arbeitnow import ArbeitnowAdapter
+from scraper.sources.greenhouse import GreenhouseAdapter
 from scraper.sources.remotive import RemotiveAdapter
 from scraper.storage.json_store import (
     PROCESSED_JOBS_PATH,
@@ -20,6 +22,8 @@ def main() -> None:
         AdzunaAdapter(),
         RemotiveAdapter(),
         ArbeitnowAdapter(),
+        GreenhouseAdapter(),
+        AshbyAdapter(),
     ]
 
     total_valid_jobs: list[NormalizedJob] = []
