@@ -29,6 +29,7 @@ class RawJob(BaseModel):
 
     source: str
     source_url: HttpUrl
+    apply_url: str | None = None
     external_id: str | None = None
     title: str = Field(min_length=1)  # empty title is an error, as Step 2 requires
     company: str                      # may be "" here; Step 9's validator rejects it

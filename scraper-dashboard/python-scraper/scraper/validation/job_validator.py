@@ -16,6 +16,10 @@ ALLOWED_DOMAINS = {
     "arbeitnow": ("arbeitnow.com", "github.com"),
     "greenhouse": ("greenhouse.io",),
     "ashby": ("ashbyhq.com",),
+    "jooble": ("*",),
+    "serpapi": ("*",),
+    "loopcv": ("*",),
+    "theirstack": ("*",),
     "github": ("github.com",),
 }
 

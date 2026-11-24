@@ -8,22 +8,36 @@ import httpx
 RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 
 
-def get_json(
+def _request_json(
+    method: str,
     url: str,
     params: dict[str, str | int | bool] | None = None,
     *,
+    payload: dict[str, object] | None = None,
+    headers: dict[str, str] | None = None,
     max_retries: int = 3,
     backoff_factor: float = 1.0,
     timeout: float = 10.0,
-) -> dict[str, object]:
+) -> dict[str, object] | list[object]:
+    if max_retries < 1:
+        raise ValueError("max_retries must be at least 1.")
+
+    request = httpx.get if method == "GET" else httpx.post
     for attempt in range(1, max_retries + 1):
         try:
-            response = httpx.get(url, params=params, timeout=timeout)
+            request_options: dict[str, object] = {"timeout": timeout}
+            if params is not None:
+                request_options["params"] = params
+            if headers is not None:
+                request_options["headers"] = headers
+            if method == "POST":
+                request_options["json"] = payload
+            response = request(url, **request_options)
             response.raise_for_status()
-            payload = response.json()
-            if not isinstance(payload, dict):
-                raise ValueError("Expected a JSON object in the API response.")
-            return payload
+            data = response.json()
+            if not isinstance(data, (dict, list)):
+                raise ValueError("Expected a JSON object or array in the API response.")
+            return data
         except (httpx.HTTPStatusError, httpx.RequestError) as err:
             status_code = getattr(getattr(err, "response", None), "status_code", None)
             should_retry = isinstance(err, httpx.RequestError) or status_code in RETRYABLE_STATUS_CODES
@@ -33,6 +47,73 @@ def get_json(
             raise
 
     raise RuntimeError("HTTP request exhausted retries without returning a response.")
+
+
+def get_json(
+    url: str,
+    params: dict[str, str | int | bool] | None = None,
+    *,
+    headers: dict[str, str] | None = None,
+    max_retries: int = 3,
+    backoff_factor: float = 1.0,
+    timeout: float = 10.0,
+) -> dict[str, object]:
+    response = _request_json(
+        "GET",
+        url,
+        params=params,
+        headers=headers,
+        max_retries=max_retries,
+        backoff_factor=backoff_factor,
+        timeout=timeout,
+    )
+    if not isinstance(response, dict):
+        raise ValueError("Expected a JSON object in the API response.")
+    return response
+
+
+def get_json_list(
+    url: str,
+    *,
+    headers: dict[str, str] | None = None,
+    max_retries: int = 3,
+    backoff_factor: float = 1.0,
+    timeout: float = 10.0,
+) -> list[object]:
+    response = _request_json(
+        "GET",
+        url,
+        headers=headers,
+        max_retries=max_retries,
+        backoff_factor=backoff_factor,
+        timeout=timeout,
+    )
+    if not isinstance(response, list):
+        raise ValueError("Expected a JSON array in the API response.")
+    return response
+
+
+def post_json(
+    url: str,
+    payload: dict[str, object],
+    *,
+    headers: dict[str, str] | None = None,
+    max_retries: int = 3,
+    backoff_factor: float = 1.0,
+    timeout: float = 10.0,
+) -> dict[str, object]:
+    response = _request_json(
+        "POST",
+        url,
+        payload=payload,
+        headers=headers,
+        max_retries=max_retries,
+        backoff_factor=backoff_factor,
+        timeout=timeout,
+    )
+    if not isinstance(response, dict):
+        raise ValueError("Expected a JSON object in the API response.")
+    return response
 
 
 DEFAULT_HEADERS = {

@@ -4,7 +4,11 @@ from scraper.sources.ashby import AshbyAdapter
 from scraper.sources.adzuna import AdzunaAdapter
 from scraper.sources.arbeitnow import ArbeitnowAdapter
 from scraper.sources.greenhouse import GreenhouseAdapter
+from scraper.sources.jooble import JoobleAdapter
+from scraper.sources.loopcv import LoopCVAdapter
 from scraper.sources.remotive import RemotiveAdapter
+from scraper.sources.serpapi import SerpApiAdapter
+from scraper.sources.theirstack import TheirStackAdapter
 from scraper.storage.json_store import (
     PROCESSED_JOBS_PATH,
     RAW_JOBS_PATH,
@@ -24,6 +28,10 @@ def main() -> None:
         ArbeitnowAdapter(),
         GreenhouseAdapter(),
         AshbyAdapter(),
+        JoobleAdapter(),
+        SerpApiAdapter(),
+        LoopCVAdapter(),
+        TheirStackAdapter(),
     ]
 
     total_valid_jobs: list[NormalizedJob] = []

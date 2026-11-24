@@ -254,13 +254,23 @@ def normalize_date(value: str | datetime | None) -> datetime | None:
 def normalize_job(raw: RawJob) -> NormalizedJob:
     cleaned_desc = clean_description(raw.description)
     city, state = split_location(raw.location_area)
-    apply_url = extract_ats_apply_url(raw.description)
+    apply_url = raw.apply_url or extract_ats_apply_url(raw.description)
 
     if not apply_url and is_github_issue_url(raw.source_url):
         apply_url = extract_external_apply_url(raw.description)
     elif (
         not apply_url
-        and raw.source in {"adzuna", "remotive", "arbeitnow", "greenhouse", "ashby"}
+        and raw.source in {
+            "adzuna",
+            "remotive",
+            "arbeitnow",
+            "greenhouse",
+            "ashby",
+            "jooble",
+            "serpapi",
+            "loopcv",
+            "theirstack",
+        }
         and not is_github_url(str(raw.source_url))
     ):
         apply_url = str(raw.source_url)

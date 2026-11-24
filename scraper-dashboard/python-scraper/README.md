@@ -4,7 +4,7 @@ Um pipeline assíncrono e resiliente em Python para recolha, normalização, val
 
 ## 🚀 Funcionalidades
 
-- **Coleta Multi-fonte**: Suporte extensível via adaptadores para Adzuna, Remotive, Arbeitnow, Greenhouse e Ashby.
+- **Coleta Multi-fonte**: Suporte extensível via adaptadores para Adzuna, Remotive, Arbeitnow, Greenhouse, Ashby, Jooble, SerpApi, LoopCV e TheirStack.
 - **Normalização Automática**: Padronização de títulos, modalidades de trabalho (`remote`, `hybrid`, `onsite`), senioridade, tecnologias e datas em UTC.
 - **Validação Rígida**: Filtro automático de registos sem título, empresa, descrição válida ou com URLs fora dos domínios autorizados.
 - **Deduplicação Inteligente**: Fusão em memória com algoritmo de chave primária composta (Fonte + ID externo, URL canónica sem parâmetros de rastreio `utm_*` e Hash SHA-256 do conteúdo).
@@ -30,3 +30,8 @@ python-scraper/
 ├── main.py           # Pipeline principal de execução
 ├── pytest.ini
 └── requirements.txt
+```
+
+## APIs opcionais
+
+Configure as chaves no `.env` do projeto para habilitar Jooble (`JOOBLE_API_KEY`), SerpApi (`SERPAPI_API_KEY`), LoopCV (`LOOPCV_API_KEY` e `LOOPCV_LOOP_ID`) e TheirStack (`THEIRSTACK_API_KEY`). O LoopCV usa um loop já criado na conta e não cria buscas recorrentes automaticamente. A consulta TheirStack retorna até 5 vagas por execução por padrão; cada vaga retornada consome 1 crédito.
